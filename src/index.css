@@ -1,0 +1,233 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer components {
+  /* New Sabar palette — Cherry-dominant ratio (Dark Mode) */
+  --color-deep-cherry: #4a0e17;
+  --color-dusty-pink: #f4d3d9;
+  --color-warm-cream: #faf5ef;
+  --color-accent-dark: #2d080e;
+
+  /* Legacy aliases (mapped to new palette for Dark Mode) */
+  --color-mainPink: #4a0e17;
+  --color-lightPink: #f4d3d9;
+  --color-daisyYellow: #faf5ef;
+  --color-daisyGreen: #9eb79b;
+  --color-darkText: #faf5ef;
+  --color-basePink: #4a0e17;
+
+  /* Kebab-case aliases for resilient utility generation */
+  --color-main-pink: #4a0e17;
+  --color-light-pink: #f4d3d9;
+  --color-daisy-yellow: #faf5ef;
+  --color-daisy-green: #9eb79b;
+  --color-dark-text: #4a0e17;
+  --color-base-pink: #faf5ef;
+
+  /* Typography */
+  --font-sans: "Raleway", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+
+  /* Liquid glassmorphism — Cherry-tinted glass */
+  .liquid-glass {
+    background: rgba(74, 14, 23, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(247, 241, 234, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(74, 14, 23, 0.1);
+    color: #F7F1EA;
+  }
+
+  .liquid-glass-light {
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(247, 241, 234, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+    color: #F7F1EA;
+  }
+
+  .liquid-btn {
+    background: #4a0e17;
+    color: #F7F1EA;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    isolation: isolate;
+    pointer-events: auto;
+    transform: translateZ(0);
+  }
+
+  .liquid-btn:hover {
+    background: #2d080e;
+  }
+
+  .liquid-btn-solid {
+    background: #f4d3d9;
+    color: #4a0e17;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    isolation: isolate;
+    pointer-events: auto;
+    transform: translateZ(0);
+  }
+
+  .liquid-btn-solid:hover {
+    background: #e8c2c9;
+  }
+
+  .liquid-btn-wrapper {
+    background: rgba(74, 14, 23, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(247, 241, 234, 0.3);
+    border-radius: 9999px;
+    box-shadow: 0 4px 15px rgba(74, 14, 23, 0.05), inset 0 1px 1px rgba(247, 241, 234, 0.3);
+    color: #F7F1EA;
+    transition: background-color 0.3s ease, opacity 0.3s ease;
+    isolation: isolate;
+    pointer-events: auto;
+    transform: translateZ(0);
+  }
+
+  .liquid-btn-wrapper:hover {
+    background: rgba(74, 14, 23, 0.55);
+  }
+
+  .liquid-card {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(250, 245, 239, 0.2); /* ivory border */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .liquid-glass-nav {
+    background: rgba(74, 14, 23, 0.45);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(247, 241, 234, 0.35);
+  }
+
+  .shadow-liquid {
+    box-shadow: 0 8px 32px 0 rgba(74, 14, 23, 0.08);
+  }
+
+  .link-underline {
+    position: relative;
+    text-decoration: none;
+  }
+
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+  }
+
+  .link-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  .hairline {
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: currentColor;
+  }
+
+  .editorial-heading {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* btn-shine removed — the moving gradient caused GPU repaints and was
+     contributing to the hover flicker on the Order Now buttons. */
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    overflow-x: hidden;
+    overscroll-behavior-x: contain;
+    background-color: #4A0E17;
+    color: #FAF5EF;
+    font-family: "Raleway", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: #FAF5EF;
+    color: #4a0e17;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@utility page-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.press-logo {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
