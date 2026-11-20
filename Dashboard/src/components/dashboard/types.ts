@@ -1,6 +1,15 @@
-import type { OrderItem } from "@/db/schema";
-
 export type NavTab = "overview" | "orders" | "products" | "customers" | "settings";
+
+export type OrderItem = {
+  productId: number;
+  name: string;
+  sku: string;
+  size: string;
+  quantity: number;
+  price: number;
+  image: string;
+  fabric?: string;
+};
 
 export type EmirateName =
   | "Dubai"

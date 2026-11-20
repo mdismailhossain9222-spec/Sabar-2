@@ -44,6 +44,7 @@ import {
   PRODUCTS,
   cartLineKey,
   formatMoney,
+  getProducts,
   type CurrencyCode,
   type Product,
 } from "@/data/shop";
@@ -138,10 +139,24 @@ export default function Home() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [returnPolicyOpen, setReturnPolicyOpen] = useState(false);
   const [shippingPolicyOpen, setShippingPolicyOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const productModalCloseRef = useRef<HTMLButtonElement>(null);
   const productModalRef = useRef<HTMLElement>(null);
 
   const navReady = !preloaderVisible;
+
+  // ──────────────────────────────────────────────────────────────
+  // Fetch products from Supabase on mount (falls back to static if unavailable)
+  // ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    getProducts().then((fetched) => {
+      if (!cancelled && fetched.length > 0) {
+        setProducts(fetched);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const notify = useCallback((message: string, action?: "bag") => {
     setToast({ id: Date.now(), message, action });
@@ -196,15 +211,15 @@ export default function Home() {
   }, []);
 
   const categories = useMemo(
-    () => ["All", ...Array.from(new Set(PRODUCTS.map((product) => product.category)))],
-    []
+    () => ["All", ...Array.from(new Set(products.map((product) => product.category)))],
+    [products]
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const filteredProducts = useMemo(
     () =>
-      PRODUCTS.filter((product) => {
+      products.filter((product) => {
         const matchesCategory =
           activeCategory === "All" || product.category === activeCategory;
         if (!matchesCategory) return false;

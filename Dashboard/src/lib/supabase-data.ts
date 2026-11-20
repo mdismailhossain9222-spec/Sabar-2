@@ -3,7 +3,7 @@
  * Reads `orders` and `products` from the shared Supabase database.
  * Falls back to seed data when Supabase is not configured (e.g. local preview).
  */
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
 import {
   INITIAL_PRODUCTS,
   INITIAL_ORDERS,
@@ -104,16 +104,20 @@ function mapProduct(row: SupabaseProductRow, index: number): DashboardProduct {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Fetch all orders (most recent first)
+// Fetch all orders (most recent first, limited to 50)
 // ──────────────────────────────────────────────────────────────
 
 export async function fetchOrders(): Promise<DashboardOrder[]> {
   if (!isSupabaseConfigured()) return INITIAL_ORDERS as unknown as DashboardOrder[];
 
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  if (!client) return INITIAL_ORDERS as unknown as DashboardOrder[];
+
+  const { data, error } = await client
     .from("orders")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (error) {
     console.error("[Supabase] fetchOrders failed:", error.message);
@@ -130,7 +134,10 @@ export async function fetchOrders(): Promise<DashboardOrder[]> {
 export async function fetchProducts(): Promise<DashboardProduct[]> {
   if (!isSupabaseConfigured()) return INITIAL_PRODUCTS as unknown as DashboardProduct[];
 
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  if (!client) return INITIAL_PRODUCTS as unknown as DashboardProduct[];
+
+  const { data, error } = await client
     .from("products")
     .select("*")
     .order("created_at", { ascending: false });
@@ -155,13 +162,15 @@ export async function updateOrderStatus(
     return { ok: false, error: "Supabase not configured" };
   }
 
-  const updateData: Record<string, string> = {};
+  const client = getSupabaseClient();
+  if (!client) return { ok: false, error: "Supabase client unavailable" };
+
+  const updateData: Record<string, unknown> = {};
   if (updates.status) {
     updateData.status = updates.status.toLowerCase();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const { error } = await (client as any)
     .from("orders")
     .update(updateData)
     .eq("reference", String(id));

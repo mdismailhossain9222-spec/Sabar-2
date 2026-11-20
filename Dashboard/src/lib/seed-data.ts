@@ -1,4 +1,13 @@
-import type { OrderItem } from "@/db/schema";
+export interface OrderItem {
+  productId: number;
+  name: string;
+  sku: string;
+  size: string;
+  quantity: number;
+  price: number;
+  image: string;
+  fabric?: string;
+}
 
 export interface SeedProduct {
   id: number;

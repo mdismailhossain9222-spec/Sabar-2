@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,12 @@ export async function GET() {
       return NextResponse.json({ ok: false, reason: "Supabase not configured" });
     }
 
-    const { data, error } = await supabase.from("orders").select("id").limit(1);
+    const client = getSupabaseClient();
+    if (!client) {
+      return NextResponse.json({ ok: false, reason: "Supabase client unavailable" }, { status: 500 });
+    }
+
+    const { data, error } = await client.from("orders").select("id").limit(1);
 
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

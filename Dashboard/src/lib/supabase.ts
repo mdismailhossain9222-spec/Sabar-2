@@ -3,31 +3,18 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-let _supabase: ReturnType<typeof createClient> | null = null;
+let _client: ReturnType<typeof createClient> | null = null;
 
-export function getSupabaseClient() {
-  if (!_supabase) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error("Supabase not configured");
-    }
-    _supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient(): ReturnType<typeof createClient> | null {
+  if (!_client) {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    if (supabaseUrl.includes("placeholder")) return null;
+    _client = createClient(supabaseUrl, supabaseAnonKey);
   }
-  return _supabase;
+  return _client;
 }
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    supabaseUrl &&
-      supabaseAnonKey &&
-      supabaseUrl.startsWith("https://") &&
-      !supabaseUrl.includes("placeholder")
-  );
+  const client = getSupabaseClient();
+  return client !== null;
 }
-
-// Export a proxy that only creates the client on first use
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
-  get(target, prop) {
-    const client = getSupabaseClient();
-    return Reflect.get(client, prop);
-  },
-});

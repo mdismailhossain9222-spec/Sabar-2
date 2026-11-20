@@ -123,7 +123,6 @@ export type CartLine = {
   quantity: number;
 };
 
-/** Stable identity for a size-specific cart line. */
 export function cartLineKey(productId: string, size: string) {
   return `${productId}::${size}`;
 }
@@ -159,3 +158,73 @@ export type PlaceOrderInput = {
   totalAed: number;
   items: Array<{ productId: string; name: string; quantity: number; size: string }>;
 };
+
+// ──────────────────────────────────────────────────────────────
+// Dynamic product catalog — fetches from Supabase if configured
+// Falls back to static PRODUCTS if DB is empty or not set up
+// ──────────────────────────────────────────────────────────────
+
+interface SupabaseProductRow {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  colour: string;
+  image: string;
+  "imageAlt": string;
+  "imageWidth": number;
+  "imageHeight": number;
+  note: string;
+  microcopy?: string;
+  description: string;
+  sizes: string[];
+  badge?: string;
+}
+
+async function fetchProductsFromSupabase(): Promise<Product[]> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')) {
+      return [];
+    }
+
+    const client = createClient(supabaseUrl, supabaseAnonKey);
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((row: SupabaseProductRow) => ({
+      id: row.id,
+      name: row.name,
+      price: Number(row.price),
+      category: row.category,
+      colour: row.colour,
+      image: row.image,
+      imageAlt: row["imageAlt"],
+      imageWidth: row["imageWidth"] || 1200,
+      imageHeight: row["imageHeight"] || 1600,
+      note: row.note,
+      microcopy: row.microcopy,
+      description: row.description,
+      sizes: row.sizes || ['S', 'M', 'L'],
+      badge: row.badge,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+let _cachedProducts: Product[] | null = null;
+
+export async function getProducts(): Promise<Product[]> {
+  if (_cachedProducts !== null) return _cachedProducts;
+
+  const supabaseProducts = await fetchProductsFromSupabase();
+  _cachedProducts = supabaseProducts.length > 0 ? supabaseProducts : PRODUCTS;
+  return _cachedProducts;
+}
