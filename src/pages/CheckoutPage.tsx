@@ -221,6 +221,8 @@ export default function CheckoutPage() {
 
       notify("Redirecting to secure checkout...");
 
+      const orderReference = `SBR-${String(Date.now()).slice(-6)}`;
+
       const result = await redirectToStripeCheckout(stripe, lineItems, {
         successUrl: `${window.location.origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${window.location.origin}/checkout?canceled=true`,
@@ -231,6 +233,14 @@ export default function CheckoutPage() {
           customerEmirate: customer.emirate,
           paymentMethod,
           currency,
+          orderReference,
+          lineItems: JSON.stringify(
+            cartItems.map((item) => ({
+              name: item.product.name,
+              quantity: item.quantity,
+              size: item.size,
+            }))
+          ),
         },
       });
 

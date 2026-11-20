@@ -94,7 +94,16 @@ export async function redirectToStripeCheckout(
         successUrl: options?.successUrl || `${window.location.origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: options?.cancelUrl || `${window.location.origin}/checkout?canceled=true`,
         customerEmail: options?.customerEmail,
-        metadata: options?.metadata,
+        metadata: {
+          ...options?.metadata,
+          lineItems: JSON.stringify(
+            items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              size: item.size || "Standard",
+            }))
+          ),
+        },
       }),
     });
 

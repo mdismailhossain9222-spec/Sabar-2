@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import Stripe from "stripe";
+import { sendWhatsAppOrderConfirmation } from "@/lib/whatsapp";
 
 /**
  * Cloudflare Worker: Stripe Backend Endpoints
@@ -12,6 +13,10 @@ import Stripe from "stripe";
  * Environment variables (set via wrangler secret put):
  * - STRIPE_SECRET_KEY - Your Stripe secret key
  * - STRIPE_WEBHOOK_SECRET - Webhook signing secret
+ * - WHATSAPP_ACCESS_TOKEN - Meta WhatsApp Cloud API token
+ * - WHATSAPP_PHONE_NUMBER_ID - Business Account phone number ID
+ * - WHATSAPP_TEMPLATE_NAME - Approved template name (optional, default: "order_confirmation")
+ * - WHATSAPP_TEMPLATE_LANGUAGE - Language code (optional, default: "en_US")
  */
 
 // ──────────────────────────────────────────────────────────────
@@ -308,6 +313,42 @@ const app = new Hono<{ Bindings: Bindings }>()
               metadata: session.metadata,
               paymentStatus: session.payment_status,
             });
+
+            // ──────────────────────────────────────────────────────────────
+            // Send WhatsApp confirmation when order is paid
+            // ──────────────────────────────────────────────────────────────
+            if (session.metadata && session.payment_status === "paid") {
+              try {
+                const meta = session.metadata;
+                const items = meta.lineItems ? JSON.parse(meta.lineItems) : [];
+                const totalAed = session.amount_total ? Math.round(session.amount_total / 100) : 0;
+
+                const whatsappPayload = {
+                  reference: meta.orderReference || `SBR-${session.id.slice(-6)}`,
+                  customer_name: meta.customerName || "Valued Client",
+                  customer_phone: meta.customerPhone || meta.customer_details?.phone || "",
+                  customer_address: meta.customerAddress || "",
+                  customer_emirate: meta.customerEmirate || "Dubai",
+                  payment_method: meta.paymentMethod || "Card",
+                  currency: meta.currency?.toUpperCase() || "AED",
+                  total_aed: totalAed,
+                  items: items.map((item: { name: string; quantity: number; size: string }) => ({
+                    product_id: item.name,
+                    name: item.name,
+                    quantity: item.quantity,
+                    size: item.size,
+                    price: item.price || 0,
+                  })),
+                };
+
+                await sendWhatsAppOrderConfirmation(c.env, whatsappPayload);
+                console.info("[WhatsApp] Order confirmation sent for:", whatsappPayload.reference);
+              } catch (whatsappError) {
+                console.error("[WhatsApp] Failed to send confirmation:", whatsappError);
+                // Don't fail the webhook if WhatsApp fails
+              }
+            }
+
             // TODO: Fulfill the order - create order in DB, send confirmation, etc.
             break;
           }
