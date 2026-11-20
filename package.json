@@ -13,6 +13,7 @@
     "@radix-ui/react-select": "^2.4.1",
     "@stripe/react-stripe-js": "^7.0.1",
     "@stripe/stripe-js": "^10.2.1",
+    "@supabase/supabase-js": "^2.119.2",
     "clsx": "2.1.1",
     "hono": "^4.13.18",
     "hono-rate-limiter": "^0.5.4",

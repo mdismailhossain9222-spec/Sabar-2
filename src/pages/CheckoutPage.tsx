@@ -24,6 +24,7 @@ import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/contexts/CartContext";
 import { useStripe, redirectToStripeCheckout, toMinorUnits } from "@/hooks/useStripe";
 import { CustomSelect } from "@/components/Select";
+import { placeOrder } from "@/lib/orders";
 
 type PaymentMethod = "apple" | "google" | "card" | "cod";
 type ToastMessage = { id: number; message: string; action?: "bag" };
@@ -241,8 +242,30 @@ export default function CheckoutPage() {
     }
 
     // COD (Cash on Delivery)
+    const result = await placeOrder({
+      fullName: customer.fullName.trim(),
+      phone: customer.phone.trim(),
+      address: customer.address.trim(),
+      emirate: customer.emirate,
+      paymentMethod: paymentMethod,
+      currency,
+      totalAed: checkoutSubtotalAed,
+      items: cartItems.map((item) => ({
+        productId: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        size: item.size,
+      })),
+    });
+
+    if (!result.ok) {
+      notify(`Order failed — please try again.`);
+      console.error("[Order] Failed:", result.error);
+      return;
+    }
+
     setOrderPlaced({
-      reference: `SBR-${String(Date.now()).slice(-6)}`,
+      reference: result.reference,
       totalAed: checkoutSubtotalAed,
       payment: paymentMethod,
       customerName: customer.fullName.trim().split(/\s+/)[0],

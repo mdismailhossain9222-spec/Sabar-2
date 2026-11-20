@@ -127,3 +127,35 @@ export type CartLine = {
 export function cartLineKey(productId: string, size: string) {
   return `${productId}::${size}`;
 }
+
+// ──────────────────────────────────────────────────────────────
+// Supabase order types & service
+// ──────────────────────────────────────────────────────────────
+
+export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered";
+
+export type SupabaseOrderRow = {
+  id: string;
+  reference: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  customer_emirate: string;
+  payment_method: string;
+  currency: string;
+  total_aed: number;
+  status: OrderStatus;
+  items_json: unknown;
+  created_at: string;
+};
+
+export type PlaceOrderInput = {
+  fullName: string;
+  phone: string;
+  address: string;
+  emirate: string;
+  paymentMethod: string;
+  currency: CurrencyCode;
+  totalAed: number;
+  items: Array<{ productId: string; name: string; quantity: number; size: string }>;
+};
