@@ -18,6 +18,7 @@ npm-debug.log*
 sabar token.txt
 *.token
 cf-token.txt
+.mcp.json
 
 .vercel
 .env*

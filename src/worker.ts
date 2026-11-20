@@ -358,4 +358,25 @@ const app = new Hono<{ Bindings: Bindings }>()
     }
   });
 
+  // ──────────────────────────────────────────────────────────────
+  // SPA Fallback — serve index.html for all non-API routes
+  // This enables client-side React Router on Cloudflare Workers assets
+  // ──────────────────────────────────────────────────────────────
+  app.all("*", async (c) => {
+    // Skip API routes — let them fall through to existing handlers or return 404
+    if (c.req.path.startsWith("/api/")) {
+      return c.notFound();
+    }
+    // Serve the SPA entry point for all other routes (React Router handles them client-side)
+    try {
+      const indexHtml = await c.env.ASSETS?.fetch?.(new Request(new URL("/", c.req.url))) ?? null;
+      if (indexHtml && indexHtml.status === 200) {
+        return indexHtml;
+      }
+    } catch (e) {
+      console.warn("[Worker] Assets fetch failed:", e);
+    }
+    return c.html(`<html><body><a href="/">Home</a></body></html>`);
+  });
+
 export default app;

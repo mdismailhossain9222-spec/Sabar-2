@@ -3,10 +3,10 @@
 
 @layer components {
   /* New Sabar palette — Cherry-dominant ratio (Dark Mode) */
-  --color-deep-cherry: #4a0e17;
-  --color-dusty-pink: #f4d3d9;
-  --color-warm-cream: #faf5ef;
-  --color-accent-dark: #2d080e;
+  --color-deep-cherry:#4a0e17;
+  --color-dusty-pink:#f4d3d9;
+  --color-warm-cream:#faf5ef;
+  --color-accent-dark:#2d080e;
 
   /* Legacy aliases (mapped to new palette for Dark Mode) */
   --color-mainPink: #4a0e17;
