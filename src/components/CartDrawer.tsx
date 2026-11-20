@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { FlamingoMark } from "@/components/Brand";
 import {
   ApplePayMark,
+  ArrowUpRight,
   CloseIcon,
   LockIcon,
   MinusIcon,
@@ -11,6 +12,7 @@ import {
   VisaMastercardMark,
 } from "@/components/Icons";
 import { formatMoney, type CurrencyCode, type Product } from "@/data/shop";
+import { useCart } from "@/contexts/CartContext";
 
 export type DrawerItem = {
   product: Product;
@@ -22,7 +24,6 @@ export type DrawerItem = {
 type CartDrawerProps = {
   open: boolean;
   onClose: () => void;
-  items: DrawerItem[];
   currency: CurrencyCode;
   onQuantityChange: (lineKey: string, delta: number) => void;
   onRemove: (lineKey: string) => void;
@@ -34,12 +35,13 @@ const FREE_DELIVERY_AED = 600;
 export function CartDrawer({
   open,
   onClose,
-  items,
   currency,
   onQuantityChange,
   onRemove,
   onCheckout,
 }: CartDrawerProps) {
+  const { cartItems } = useCart();
+  const items = cartItems;
   const closeRef = useRef<HTMLButtonElement>(null);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotalAed = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -151,8 +153,10 @@ export function CartDrawer({
                     <img
                       src={product.image}
                       alt={product.imageAlt}
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
+                      width={product.imageWidth}
+                      height={product.imageHeight}
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -227,11 +231,11 @@ export function CartDrawer({
             <button
               type="button"
               onClick={onCheckout}
-              className="liquid-btn-wrapper mt-4 w-full py-4"
+              className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold tracking-wide text-black shadow-[0_0_20px_rgba(255,255,255,0.6)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_35px_rgba(255,255,255,0.9)] w-full"
               aria-label="Proceed to secure checkout"
             >
-              <LockIcon className="h-3.5 w-3.5" />
               Proceed to secure checkout
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
             <div className="mt-3 flex items-center justify-between gap-3 text-[#FAF5EF]/50">
               <span className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.16em]">

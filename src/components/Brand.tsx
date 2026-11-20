@@ -80,7 +80,7 @@ export function Wordmark({
   className = "",
   size = "md",
   href = "#home",
-  ariaLabel = "Sabar by Simran — home",
+  ariaLabel = "Sabr by Simran — home",
   showMark = true,
 }: WordmarkProps) {
   const s = wordSizes[size];
@@ -101,12 +101,12 @@ export function Wordmark({
         <span
           className={`font-serif italic tracking-[-0.045em] text-[#FAF5EF] ${s.name}`}
         >
-          Sabar
+          Sabr
         </span>
         <span
           className={`mt-1.5 pl-[2px] font-sans font-bold uppercase ${s.tag} text-[#FAF5EF]/70`}
         >
-          by Simran
+          By Simran
         </span>
       </span>
     </a>

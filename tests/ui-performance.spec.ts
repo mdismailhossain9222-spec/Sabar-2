@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Sabar by Simran UI Tests', () => {
+test.describe('Sabr By Simran UI Tests', () => {
   const URL = 'http://localhost:5179';
 
   test('Mobile View (iPhone 14)', async ({ page }) => {

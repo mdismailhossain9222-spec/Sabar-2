@@ -4,10 +4,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
-import { CartDrawer, type DrawerItem } from "@/components/CartDrawer";
+import { PolicyModal } from "@/components/PolicyModal";
+import { Link, useNavigate } from "react-router-dom";
 import { Reveal } from "@/components/Reveal";
 import { SplitText } from "@/components/SplitText";
 import { FlamingoMark, Wordmark } from "@/components/Brand";
@@ -17,7 +17,6 @@ import {
   BagIcon,
   CheckIcon,
   ChevronDown,
-  CloseIcon,
   DaisyIcon,
   GlobeIcon,
   GoogleGlyph,
@@ -45,67 +44,13 @@ import {
   PRODUCTS,
   cartLineKey,
   formatMoney,
-  type CartLine,
   type CurrencyCode,
   type Product,
 } from "@/data/shop";
-
-type PaymentMethod = "apple" | "google" | "card" | "cod";
-type ToastMessage = { id: number; message: string; action?: "bag" };
-
-type PaymentOption = {
-  id: PaymentMethod;
-  label: string;
-  detail: string;
-  icon: ReactNode;
-};
-
-type CustomerDetails = {
-  fullName: string;
-  phone: string;
-  address: string;
-};
-
-type CheckoutErrors = Partial<Record<keyof CustomerDetails | "payment", string>>;
-
-type PlacedOrder = {
-  reference: string;
-  totalAed: number;
-  payment: PaymentMethod;
-  customerName: string;
-};
-
-/** Shared field styling for the one-page checkout. */
-const CHECKOUT_INPUT_CLASSES = (hasError = false) =>
-  `w-full rounded-xl border bg-[#FAF5EF]/10 px-4 py-3 text-sm text-[#FAF5EF] transition-colors duration-300 placeholder:text-[#FAF5EF]/50 focus:outline-none focus:ring-2 focus:ring-[#E87272] ${
-    hasError ? "border-[#E87272] ring-1 ring-[#E87272]/25" : "border-[#4A0E17]/30"
-  }`;
-
-const PAYMENT_OPTIONS: PaymentOption[] = [
-  { id: "apple", label: "Apple Pay", detail: "Instant · Face ID", icon: <AppleGlyph className="h-4 w-3.5" /> },
-  { id: "google", label: "Google Pay", detail: "Instant · Wallet", icon: <GoogleGlyph className="h-4 w-4" /> },
-  {
-    id: "card",
-    label: "Visa / Mastercard",
-    detail: "Credit & debit",
-    icon: (
-      <span className="flex items-center" aria-hidden="true">
-        <span className="h-3 w-3 rounded-full bg-[#4A0E17]" />
-        <span className="-ml-1 h-3 w-3 rounded-full bg-[#9EB79B]/90" />
-      </span>
-    ),
-  },
-  {
-    id: "cod",
-    label: "Cash on Delivery",
-    detail: "Across the UAE",
-    icon: <TruckIcon className="h-4 w-4" />,
-  },
-];
+import { useCart } from "@/contexts/CartContext";
 
 const NAV_LINKS = [
-  { label: "Collection", href: "#collection" },
-  { label: "Story", href: "#story" },
+  { label: "The Premiere", href: "#collection" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -114,12 +59,12 @@ const MARQUEE_NOTES = [
   "Hand-finished in Dubai",
   "Complimentary delivery across the UAE",
   "Limited runs, considered pieces",
-  "Sabar by Simran",
+  "Sabr by Simran",
 ];
 
 const PRESS = ["Vogue Arabia", "Harper's Bazaar", "MOJEH", "Emirates Woman"];
 
-const PRODUCT_MATS = ["bg-[#FAF5EF]", "bg-[#9EB79B]", "bg-[#FAF5EF]", "bg-[#9EB79B]"];
+const PRODUCT_MATS = ["bg-[#FAF5EF]", "bg-[#FAF5EF]", "bg-[#FAF5EF]", "bg-[#FAF5EF]"];
 
 const FOOTER_COLUMNS = [
   {
@@ -130,7 +75,7 @@ const FOOTER_COLUMNS = [
         label: "Book a private fitting",
         href: "mailto:hello@sabarbysimran.ae?subject=Private%20fitting",
       },
-      { label: "Care guide", href: "#story" },
+      { label: "Care guide", href: "#collection" },
     ],
   },
   {
@@ -152,6 +97,13 @@ const FOOTER_COLUMNS = [
       { label: "Payment security", href: "#checkout" },
     ],
   },
+  {
+    title: "Contact Us",
+    links: [
+      { label: "Return & Exchange Policy", href: "#", policy: "return" },
+      { label: "Shipping Policy", href: "#", policy: "shipping" },
+    ],
+  },
 ];
 
 const SOCIALS = [
@@ -162,27 +114,30 @@ const SOCIALS = [
 ];
 
 export default function Home() {
+  const {
+    cartItems,
+    currency,
+    setCurrency,
+    addToCart,
+    removeFromCart,
+    changeQuantity,
+    cartCount,
+    cartSubtotalAed,
+    clearCart,
+  } = useCart();
+
   const [preloaderVisible, setPreloaderVisible] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [currency, setCurrency] = useState<CurrencyCode>("AED");
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>("apple");
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [customer, setCustomer] = useState<CustomerDetails>({
-    fullName: "",
-    phone: "",
-    address: "",
-  });
-  const [checkoutErrors, setCheckoutErrors] = useState<CheckoutErrors>({});
-  const [checkoutQuantity, setCheckoutQuantity] = useState(1);
-  const [orderPlaced, setOrderPlaced] = useState<PlacedOrder | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [returnPolicyOpen, setReturnPolicyOpen] = useState(false);
+  const [shippingPolicyOpen, setShippingPolicyOpen] = useState(false);
   const productModalCloseRef = useRef<HTMLButtonElement>(null);
   const productModalRef = useRef<HTMLElement>(null);
 
@@ -193,6 +148,9 @@ export default function Home() {
   }, []);
 
   const closeCart = useCallback(() => setCartOpen(false), []);
+
+  const openReturnPolicy = useCallback(() => setReturnPolicyOpen(true), []);
+  const openShippingPolicy = useCallback(() => setShippingPolicyOpen(true), []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -216,25 +174,13 @@ export default function Home() {
   }, [toast]);
 
   useEffect(() => {
-    if (!cartOpen && !menuOpen && !selectedProduct) return;
+    if (!cartOpen && !menuOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [cartOpen, menuOpen, selectedProduct]);
-
-  useEffect(() => {
-    if (!selectedProduct) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    // Always open the sheet at the product image, not at a previous scroll offset.
-    productModalRef.current?.scrollTo({ top: 0 });
-    const focusTimer = window.setTimeout(() => productModalCloseRef.current?.focus(), 60);
-    return () => {
-      window.clearTimeout(focusTimer);
-      previouslyFocused?.focus?.();
-    };
-  }, [selectedProduct]);
+  }, [cartOpen, menuOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -248,30 +194,6 @@ export default function Home() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  const cartItems = useMemo<DrawerItem[]>(
-    () =>
-      cart.flatMap((line) => {
-        const product = PRODUCTS.find((item) => item.id === line.productId);
-        return product
-          ? [
-              {
-                product,
-                quantity: line.quantity,
-                size: line.size,
-                lineKey: cartLineKey(line.productId, line.size),
-              },
-            ]
-          : [];
-      }),
-    [cart]
-  );
-
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-  const cartSubtotalAed = cartItems.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0
-  );
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(PRODUCTS.map((product) => product.category)))],
@@ -303,95 +225,6 @@ export default function Home() {
 
   const hasActiveFilters = normalizedQuery.length > 0 || activeCategory !== "All";
 
-  /**
-   * Checkout shows the live shopping bag. When the bag is empty we present a
-   * featured piece (The Black Swan) so the one-page checkout can be previewed
-   * and ordered directly.
-   */
-  const isFeaturedCheckout = cartItems.length === 0;
-  const checkoutItems: DrawerItem[] = isFeaturedCheckout
-    ? [
-        {
-          product: PRODUCTS[0],
-          quantity: checkoutQuantity,
-          size: "M",
-          lineKey: cartLineKey(PRODUCTS[0].id, "M"),
-        },
-      ]
-    : cartItems;
-  const checkoutSubtotalAed = checkoutItems.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0
-  );
-  const checkoutPieceCount = checkoutItems.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
-  const checkoutTotalLabel = formatMoney(checkoutSubtotalAed, currency);
-  const selectedPayment = PAYMENT_OPTIONS.find((option) => option.id === paymentMethod);
-
-  const openProduct = (product: Product) => {
-    setSelectedProduct(product);
-    setSelectedSize(null);
-  };
-
-  const closeProduct = () => {
-    setSelectedProduct(null);
-    setSelectedSize(null);
-  };
-
-  const addToCart = (product: Product, size: string) => {
-    // TODO: Integrate the Stripe Checkout Session / Apple Pay API here.
-    // Replace this local bag flow with a secure server call when the
-    // one-page checkout endpoint is ready.
-    setCart((previous) => {
-      const existing = previous.find(
-        (line) => line.productId === product.id && line.size === size
-      );
-      if (existing) {
-        return previous.map((line) =>
-          line.productId === product.id && line.size === size
-            ? { ...line, quantity: line.quantity + 1 }
-            : line
-        );
-      }
-      return [...previous, { productId: product.id, size, quantity: 1 }];
-    });
-    notify(`${product.name} · Size ${size} added to your edit.`, "bag");
-    // Scroll cue is intentionally avoided so the shopper can keep browsing.
-  };
-
-  const changeQuantity = (lineKey: string, delta: number) => {
-    setCart((previous) =>
-      previous.map((line) =>
-        cartLineKey(line.productId, line.size) === lineKey
-          ? { ...line, quantity: Math.max(1, line.quantity + delta) }
-          : line
-      )
-    );
-  };
-
-  const removeFromCart = (lineKey: string) => {
-    const line = cart.find(
-      (cartLine) => cartLineKey(cartLine.productId, cartLine.size) === lineKey
-    );
-    const product = PRODUCTS.find((item) => item.id === line?.productId);
-    setCart((previous) =>
-      previous.filter((cartLine) => cartLineKey(cartLine.productId, cartLine.size) !== lineKey)
-    );
-    if (product) {
-      notify(`${product.name}${line ? ` · Size ${line.size}` : ""} removed from your edit.`);
-    }
-  };
-
-  const proceedToCheckout = () => {
-    // TODO: Swap this hand-off for Stripe Checkout / Tap Payments once the
-    // production payment keys and order API are connected.
-    setCartOpen(false);
-    setToast(null);
-    document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
   const toggleSaved = (product: Product) => {
     const isSaved = saved.has(product.id);
     setSaved((previous) => {
@@ -412,92 +245,16 @@ export default function Home() {
     notify(`Prices now shown in ${code}.`);
   };
 
-  const updateCustomerField = (field: keyof CustomerDetails, value: string) => {
-    setCustomer((previous) => ({ ...previous, [field]: value }));
-    setCheckoutErrors((previous) => {
-      if (!previous[field]) return previous;
-      const next = { ...previous };
-      delete next[field];
-      return next;
-    });
+  const navigate = useNavigate();
+
+  const openProduct = (product: Product) => {
+    navigate(`/product/${product.id}`);
   };
 
-  const choosePaymentMethod = (method: PaymentMethod) => {
-    setPaymentMethod(method);
-    setCheckoutErrors((previous) => {
-      if (!previous.payment) return previous;
-      const next = { ...previous };
-      delete next.payment;
-      return next;
-    });
-  };
-
-  const adjustCheckoutQuantity = (lineKey: string, delta: number) => {
-    if (isFeaturedCheckout) {
-      setCheckoutQuantity((quantity) => Math.max(1, quantity + delta));
-      return;
-    }
-    changeQuantity(lineKey, delta);
-  };
-
-  const resetCheckout = () => {
-    setOrderPlaced(null);
-    setCustomer({ fullName: "", phone: "", address: "" });
-    setCheckoutErrors({});
-    setCheckoutQuantity(1);
-    setPaymentMethod("apple");
-  };
-
-  const placeOrder = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextErrors: CheckoutErrors = {};
-
-    if (customer.fullName.trim().length < 2) {
-      nextErrors.fullName = "Please enter your full name.";
-    }
-    if (customer.phone.replace(/\D/g, "").length < 7) {
-      nextErrors.phone = "Enter a valid phone number, e.g. +971 50 123 4567.";
-    }
-    if (customer.address.trim().length < 8) {
-      nextErrors.address = "Please add a complete delivery address.";
-    }
-    if (!paymentMethod) {
-      nextErrors.payment = "Choose a payment method to continue.";
-    }
-
-    setCheckoutErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      notify("Please complete the highlighted checkout details.");
-      const firstInvalid = (["fullName", "phone", "address"] as const).find(
-        (field) => nextErrors[field]
-      );
-      const fieldIds: Record<"fullName" | "phone" | "address", string> = {
-        fullName: "checkout-full-name",
-        phone: "checkout-phone",
-        address: "checkout-address",
-      };
-      if (firstInvalid) {
-        window.setTimeout(() => document.getElementById(fieldIds[firstInvalid])?.focus(), 40);
-      }
-      return;
-    }
-
-    if (!paymentMethod) return;
-
-    // TODO: Stripe / Tap Payments integration. Create a secure Checkout
-    // Session on the server using the form details above, then redirect the
-    // customer to the hosted payment page before confirming the order.
-    setOrderPlaced({
-      reference: `SBR-${String(Date.now()).slice(-6)}`,
-      totalAed: checkoutSubtotalAed,
-      payment: paymentMethod,
-      customerName: customer.fullName.trim().split(/\s+/)[0],
-    });
-    setCart([]);
-    setCheckoutQuantity(1);
-    setCheckoutErrors({});
-    notify("Order placed — welcome to the Sabar edit.");
+  const proceedToCheckout = () => {
+    setCartOpen(false);
+    setToast(null);
+    navigate("/checkout");
   };
 
   return (
@@ -514,7 +271,7 @@ export default function Home() {
         role="status"
         aria-live="polite"
         aria-hidden={!preloaderVisible}
-        aria-label="Welcome to Sabar by Simran"
+        aria-label="Welcome to Sabr by Simran"
         className={`fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden bg-[#4A0E17] transition-opacity duration-500 ease-out ${
           preloaderVisible ? "opacity-100" : "pointer-events-none invisible opacity-0"
         }`}
@@ -532,9 +289,9 @@ export default function Home() {
           <span className="flex h-20 w-20 items-center justify-center rounded-full border border-[#4A0E17]/20 bg-[#FAF5EF]/10 text-[#FAF5EF] shadow-liquid">
             <FlamingoMark className="h-11 w-11" />
           </span>
-          <p className="mt-5 font-serif text-5xl italic tracking-[-0.05em] text-[#FAF5EF]">Sabar</p>
+          <p className="mt-5 font-serif text-5xl italic tracking-[-0.05em] text-[#FAF5EF]">Sabr</p>
           <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.5em] text-[#FAF5EF]/60">
-            by Simran
+            By Simran
           </p>
           <span className="mt-8 flex h-1.5 w-32 overflow-hidden rounded-full bg-[#4A0E17]/15">
             <span className="block h-full w-1/2 animate-pulse rounded-full bg-[#4A0E17]" />
@@ -561,21 +318,21 @@ export default function Home() {
           }`}
         >
           <span className={`shrink-0 md:hidden ${navReady ? "animate-fade-down" : "opacity-0"}`}>
-            <Wordmark size="sm" ariaLabel="Sabar by Simran — return to top" />
+            <Wordmark size="sm" ariaLabel="Sabr by Simran — return to top" />
           </span>
           <span
             style={navReady ? { animationDelay: "80ms" } : undefined}
             className={`hidden shrink-0 md:block ${navReady ? "animate-fade-down" : "opacity-0"}`}
           >
-            <Wordmark size="md" ariaLabel="Sabar by Simran — return to top" />
+            <Wordmark size="md" ariaLabel="Sabr by Simran — return to top" />
           </span>
 
           <div className="hidden flex-1 items-center justify-center gap-8 md:flex lg:gap-11">
-            {NAV_LINKS.map((link, index) => (
+            {NAV_LINKS.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                style={navReady ? { animationDelay: `${140 + index * 90}ms` } : undefined}
+                style={navReady ? { animationDelay: `${140 + NAV_LINKS.indexOf(link) * 90}ms` } : undefined}
                 className={`link-underline eyebrow flex items-center gap-2 text-[9px] text-[#FAF5EF]/75 transition-colors duration-300 hover:text-[#FAF5EF] ${
                   navReady ? "animate-fade-down" : "opacity-0"
                 }`}
@@ -672,13 +429,15 @@ export default function Home() {
                 </span>
               </div>
               <nav aria-label="Mobile navigation" className="mt-1">
-                {NAV_LINKS.map((link, index) => (
+                {NAV_LINKS.map((link) => {
+                const linkIndex = NAV_LINKS.indexOf(link);
+                return (
                   <a
                     key={link.href}
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
                     aria-label={`${link.label} section`}
-                    style={{ animationDelay: `${90 + index * 80}ms` }}
+                    style={{ animationDelay: `${90 + linkIndex * 80}ms` }}
                     className="group flex animate-fade-down items-center justify-between border-b border-[#4A0E17]/10 py-3.5"
                   >
                     <span className="flex items-baseline gap-3">
@@ -686,13 +445,14 @@ export default function Home() {
                         aria-hidden="true"
                         className="text-[8px] font-bold tracking-[0.18em] text-[#FAF5EF]/45"
                       >
-                        0{index + 1}
+                        0{linkIndex + 1}
                       </span>
                       <span className="font-serif text-2xl italic text-[#FAF5EF]">{link.label}</span>
                     </span>
                     <ArrowUpRight className="h-4 w-4 text-[#FAF5EF]/40 transition group-hover:text-[#FAF5EF]" />
                   </a>
-                ))}
+                );
+              })}
               </nav>
               <a
                 href="#collection"
@@ -733,7 +493,7 @@ export default function Home() {
             className="pointer-events-none absolute inset-x-5 top-20 z-20 flex items-center justify-between gap-4 border-t border-[#4A0E17]/20 pt-3 sm:inset-x-8 sm:top-24 lg:inset-x-12"
           >
             <p className="text-[7px] font-bold uppercase tracking-[0.3em] text-[#FAF5EF]/75 sm:text-[8px]">
-              Sabar by Simran
+              Sabr by Simran
             </p>
             <p className="hidden text-[7px] font-bold uppercase tracking-[0.3em] text-[#FAF5EF]/65 sm:block sm:text-[8px]">
               The Desert Bloom · SS26
@@ -759,51 +519,58 @@ export default function Home() {
             <Reveal delay={100} variant="fade" start={navReady} className="mt-7 w-full sm:mt-8">
               <h1
                 id="hero-heading"
-                aria-label="Redefining Elegance."
-                className="editorial-heading text-[clamp(3.4rem,9vw,8rem)] leading-[0.94] text-[#FAF5EF] drop-shadow-[0_4px_26px_rgba(74,14,23,0.15)]"
+                aria-label="Built with Sabr, worn with confidence"
+                className="editorial-heading flex flex-col items-center justify-center text-center gap-y-5 text-[#FAF5EF] drop-shadow-[0_4px_26px_rgba(74,14,23,0.15)]"
               >
-                <span aria-hidden="true" className="block whitespace-nowrap">
-                  <SplitText text="Redefining" delay={160} stagger={90} />
+                <span aria-hidden="true" className="whitespace-nowrap">
+                  <SplitText text="Built with" delay={160} stagger={90} className="text-[clamp(1.2rem,3vw,2.5rem)] italic font-serif text-[#FAF5EF]" />
                 </span>
-                <span aria-hidden="true" className="relative inline-block whitespace-nowrap">
+                <span aria-hidden="true" className="whitespace-nowrap">
                   <SplitText
-                    text="Elegance"
-                    accent="."
+                    text="Sabr"
+                    accent=""
                     accentClassName="text-[#FAF5EF]"
                     delay={280}
                     stagger={90}
+                    className="text-[clamp(4rem,12vw,10rem)] font-serif tracking-tight"
+                  />
+                </span>
+                <span aria-hidden="true" className="whitespace-nowrap">
+                  <SplitText
+                    text="WORN WITH CONFIDENCE"
+                    delay={400}
+                    stagger={90}
+                    className="text-[clamp(0.7rem,1.5vw,1.2rem)] font-medium uppercase tracking-[0.35em] text-[#FAF5EF] font-sans"
                   />
                 </span>
               </h1>
             </Reveal>
 
             <Reveal delay={260} variant="fade" start={navReady}>
-              <p className="mx-auto mt-6 max-w-[32rem] text-[13px] font-normal leading-[1.85] text-[#FAF5EF]/90 sm:mt-7 sm:text-[15px]">
+              <p className="mx-auto mt-8 max-w-[32rem] text-[13px] font-normal leading-[1.9] text-[#FAF5EF] sm:mt-10 sm:text-[15px]">
                 Premium clothing crafted for the modern UAE lifestyle.
               </p>
-              <p className="mt-3 text-[8px] font-bold uppercase tracking-[0.24em] text-[#FAF5EF]/65 sm:text-[9px]">
+              <p className="mt-4 text-[8px] font-bold uppercase tracking-[0.28em] text-[#FAF5EF] sm:text-[9px]">
                 Hand-finished in Dubai · Made in small numbers
               </p>
             </Reveal>
 
             <Reveal delay={380} variant="fade" start={navReady}>
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-10 sm:flex-row sm:gap-4">
+              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:mt-12 sm:flex-row sm:gap-6">
                 <a
                   href="#collection"
-                  aria-label="Explore the Sabar by Simran SS26 collection"
-                  className="liquid-btn-wrapper group inline-flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF] transition-transform duration-300 hover:scale-105 active:scale-95 sm:w-auto"
+                  aria-label="Explore the Sabr by Simran SS26 collection"
+                  className="group inline-flex w-full items-center justify-center gap-3 rounded-full border-2 border-[#FAF5EF] px-8 py-4 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF] transition-all duration-300 hover:scale-105 hover:bg-[#FAF5EF] hover:text-[#4A0E17] hover:border-[#FAF5EF] active:scale-95 sm:w-auto"
                 >
-                  Explore Collection
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#FAF5EF]/10 transition-colors duration-300 group-hover:rotate-45 group-hover:bg-[#FAF5EF]/10">
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </span>
+                  EXPLORE COLLECTION
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </a>
                 <a
-                  href="#story"
-                  aria-label="Read the Sabar by Simran brand story"
+                  href="#collection"
+                  aria-label="Explore the Sabr by Simran Premiere collection"
                   className="liquid-btn-wrapper group inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF] transition-transform duration-300 hover:scale-105 active:scale-95 sm:w-auto"
                 >
-                  <span className="link-underline">Our Story</span>
+                  <span className="link-underline">The Premiere</span>
                   <span
                     aria-hidden="true"
                     className="transition-transform duration-300 group-hover:translate-x-1"
@@ -817,7 +584,6 @@ export default function Home() {
             <Reveal delay={500} variant="fade" start={navReady}>
               <div className="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-[#4A0E17]/20 pt-5 sm:mt-11">
                 {[
-                  { icon: TruckIcon, text: "Complimentary delivery in the UAE" },
                   { icon: LeafIcon, text: "Considered, small-batch craft" },
                 ].map(({ icon: FeatureIcon, text }) => (
                   <p
@@ -906,16 +672,16 @@ export default function Home() {
               <SplitText
                 as="h2"
                 id="collection-heading"
-                text="The Collection"
+                text="The Premiere"
                 delay={80}
                 stagger={110}
                 className="editorial-heading mt-5 text-[clamp(3rem,6.4vw,5.5rem)] leading-[0.95] text-[#FAF5EF]"
               />
-              <Reveal delay={180} variant="fade">
-                <p className="mx-auto mt-4 max-w-[30rem] text-xs font-normal leading-[1.8] text-[#FAF5EF]/65 sm:text-[13px]">
-                  Four considered silhouettes, cut for the woman who understands that true elegance is
-                  never loud. Each piece is produced in a limited run.
-                </p>
+              <Reveal delay={200} variant="fade">
+                <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#FAF5EF]/20 bg-[#FAF5EF]/10 px-3.5 py-1.5 text-[7px] font-medium tracking-[0.14em] text-[#FAF5EF]/70">
+                  <span className="h-1 w-1 rounded-full bg-[#E87272]" aria-hidden="true" />
+                  a quieter kind of luxury.
+                </span>
               </Reveal>
             </Reveal>
 
@@ -963,79 +729,42 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-[#4A0E17]/20 px-1 pb-0.5 pt-2.5">
-                  <div
-                    role="group"
-                    aria-label="Filter the collection by category"
-                    className="flex flex-wrap items-center gap-1.5 sm:gap-2"
-                  >
-                    {categories.map((category) => {
-                      const isActive = activeCategory === category;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => setActiveCategory(category)}
-                          aria-pressed={isActive}
-                          aria-label={`Show ${category === "All" ? "all pieces" : `${category} pieces`}`}
-                          className={`rounded-full border px-3.5 py-2 text-[8px] font-bold uppercase tracking-[0.13em] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] sm:px-4 ${
-                            isActive
-                              ? "border-[#E87272] bg-[#E87272] text-[#FAF5EF] shadow-[0_8px_22px_-10px_rgba(232,114,114,0.85)]"
-                              : "border-[#4A0E17]/30 bg-[#FAF5EF]/10 text-[#FAF5EF]/60 hover:border-[#4A0E17]/50 hover:bg-[#FAF5EF]/10 hover:text-[#FAF5EF]"
-                          }`}
-                        >
-                          {category}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setActiveCategory("All");
-                      }}
-                      aria-label="Clear all collection filters"
-                      className="group flex items-center gap-1 rounded-full px-2 py-1.5 text-[8px] font-bold uppercase tracking-[0.13em] text-[#FAF5EF]/50 transition hover:text-[#FAF5EF]"
-                    >
-                      Reset
-                      <CloseIcon className="h-2.5 w-2.5 transition-transform duration-300 group-hover:rotate-90" />
-                    </button>
-                  )}
-                </div>
               </div>
             </Reveal>
 
             {filteredProducts.length > 0 ? (
               <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 sm:gap-8 xl:grid-cols-4">
-                {filteredProducts.map((product, index) => {
+                {filteredProducts.map((product) => {
+                  const productIndex = filteredProducts.indexOf(product);
                   const isSaved = saved.has(product.id);
                   const price = formatMoney(product.price, currency);
                   return (
-                    <Reveal key={product.id} delay={index * 90} className="h-full">
-                      <article className="group liquid-card flex h-full flex-col rounded-3xl p-3 transition-transform duration-300 hover:-translate-y-3 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(232,114,114,0.2)]">
-                        <div
-                          className={`relative aspect-[3/4] overflow-hidden rounded-[1.15rem] ${PRODUCT_MATS[index % PRODUCT_MATS.length]}`}
-                        >
-                          <div className="absolute inset-2 overflow-hidden rounded-[0.9rem] bg-transparent">
-                            <img
-                              src={product.image}
-                              alt={product.imageAlt}
-                              loading="lazy"
-                              decoding="async"
-                              className="h-full w-full object-cover transition-colors duration-[900ms] ease-out group-hover:scale-[1.055]"
-                            />
-                            <div
-                              aria-hidden="true"
-                              className="absolute inset-0 bg-linear-to-t from-darkText/35 via-transparent to-transparent opacity-70 transition-opacity duration-500 group-hover:opacity-100"
-                            />
-                          </div>
+                    <Reveal key={product.id} delay={productIndex * 90} className="h-full">
+                      <article className="group flex h-full flex-col rounded-2xl overflow-hidden transition-transform duration-300 hover:-translate-y-3 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(232,114,114,0.2)]">
+                        <div className="relative aspect-[3/4] overflow-hidden rounded-t-2xl">
+                          <img
+                            src={product.image}
+                            alt={product.imageAlt}
+                            loading={productIndex < 4 ? "eager" : "lazy"}
+                            fetchPriority={productIndex < 4 ? "high" : "auto"}
+                            decoding="async"
+                            width={product.imageWidth}
+                            height={product.imageHeight}
+                            className="h-full w-full object-cover group-hover:scale-[1.055]"
+                          />
+                          <div
+                            aria-hidden="true"
+                            className="absolute inset-0 bg-linear-to-t from-darkText/35 via-transparent to-transparent opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+                          />
 
                           <span className="liquid-glass-light absolute left-3 top-3 z-10 rounded-full px-2.5 py-1.5 text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/75">
-                            Nº {String(index + 1).padStart(2, "0")}
+                            Nº {String(productIndex + 1).padStart(2, "0")}
                           </span>
+                          {product.microcopy && (
+                            <span className="absolute left-3 top-[calc(1.5rem+1.5rem)] z-10 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-[#FAF5EF]/25 bg-[#4A0E17]/70 px-2.5 py-1 text-[6px] font-medium tracking-[0.12em] text-[#FAF5EF]/85 backdrop-blur-md">
+                              {product.microcopy}
+                            </span>
+                          )}
 
                           <button
                             type="button"
@@ -1061,12 +790,14 @@ export default function Home() {
                             </span>
                           )}
 
-                          <span
-                            aria-hidden="true"
-                            className="liquid-glass-light absolute bottom-3 right-3 z-10 flex translate-y-2 items-center gap-1 rounded-full px-2.5 py-1.5 text-[7px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/80 opacity-0 transition-colors duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+                          <button
+                            type="button"
+                            onClick={() => openProduct(product)}
+                            aria-label={`Open ${product.name} to choose a size and order`}
+                            className="liquid-glass-light absolute bottom-3 right-3 z-10 flex translate-y-2 items-center gap-1 rounded-full px-2.5 py-1.5 text-[7px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/80 opacity-0 transition-colors duration-300 group-hover:translate-y-0 group-hover:opacity-100 focus:opacity-100 focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-[#E87272]"
                           >
                             View <ArrowUpRight className="h-2.5 w-2.5" />
-                          </span>
+                          </button>
                         </div>
 
                         <div className="flex flex-1 flex-col px-2 pb-1 pt-4">
@@ -1105,10 +836,10 @@ export default function Home() {
                             type="button"
                             onClick={() => openProduct(product)}
                             aria-label={`Open ${product.name} to choose a size and order`}
-                            className="liquid-btn-wrapper group/btn mt-auto w-full justify-between px-4 py-3.5 pt-3.5 text-[9px] transition-transform duration-300 hover:scale-105 hover:bg-[#F09DBB] hover:text-[#FAF5EF] active:scale-95"
+                            className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold tracking-wide text-black shadow-[0_0_20px_rgba(255,255,255,0.6)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_35px_rgba(255,255,255,0.9)] w-full mt-auto"
                           >
                             Order Now
-                            <ArrowUpRight className="h-3.5 w-3.5 transition-colors duration-300 group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                            <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                           </button>
                         </div>
                       </article>
@@ -1164,738 +895,15 @@ export default function Home() {
             </Reveal>
           </div>
         </section>
-
-        {/* BRAND STORY */}
-        <section
-          id="story"
-          aria-labelledby="story-heading"
-          className="relative scroll-mt-[140px] overflow-hidden bg-[#4A0E17] py-20 sm:py-24 lg:py-32"
-        >
-
-          <div className="relative mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10">
-            <div className="grid gap-14 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-16 xl:gap-24">
-              <div>
-                <Reveal threshold={0.2} variant="fade">
-                  <p className="eyebrow flex items-center gap-3 text-[8px] text-[#FAF5EF]/50">
-                    <span className="hairline text-[#FAF5EF]" aria-hidden="true" /> 03 — Our Story
-                  </p>
-                  <SplitText
-                    as="h2"
-                    id="story-heading"
-                    text="Crafted for the bold."
-                    delay={80}
-                    stagger={80}
-                    className="editorial-heading mt-5 max-w-[12ch] text-[clamp(3rem,5.6vw,5.2rem)] leading-[1.02] text-[#FAF5EF]"
-                  />
-                  <p className="mt-4 font-serif text-lg italic text-[#FAF5EF]/75">Sabar means patience.</p>
-                </Reveal>
-
-                <Reveal delay={140}>
-                  <div className="mt-6 max-w-[33rem] space-y-4 text-[12px] font-normal leading-[1.8] text-[#FAF5EF]/70 sm:text-[13px]">
-                    <p>
-                      Sabar began with a simple thought: that patience is the truest form of luxury.
-                      Every piece is cut, draped and finished in our Dubai atelier — made slowly, in small
-                      numbers, for the woman who knows exactly who she is.
-                    </p>
-                    <p>
-                      Rooted in the colours of the Gulf and inspired by the ease of the modern wardrobe,
-                      our silhouettes move from morning light to midnight without ever asking for
-                      attention.
-                    </p>
-                  </div>
-                </Reveal>
-
-                <Reveal delay={240}>
-                <ul className="mt-7 grid max-w-[33rem] gap-4 sm:grid-cols-3">
-                  {[
-                    { icon: MapPinIcon, title: "Made in the UAE", text: "Atelier crafted" },
-                    { icon: LeafIcon, title: "Small batch", text: "Under 50 pieces" },
-                    { icon: SparkleIcon, title: "Considered", text: "Designed to last" },
-                  ].map(({ icon: StoryIcon, title, text }) => (
-                    <li key={title} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/15 bg-[#4A0E17]/10 text-[#FAF5EF]">
-                        <StoryIcon className="h-3.5 w-3.5" />
-                      </span>
-                      <div>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/75">
-                          {title}
-                        </p>
-                        <p className="mt-0.5 text-[9px] text-[#FAF5EF]/50">{text}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                </Reveal>
-
-                <Reveal delay={330}>
-                <div className="mt-8 flex flex-col items-start gap-5 border-t border-[#4A0E17]/20 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#4A0E17]/15 bg-[#FAF5EF]/10 text-[#FAF5EF]">
-                      <FlamingoMark className="h-6 w-6" />
-                    </span>
-                    <div>
-                      <p className="font-serif text-2xl italic leading-none text-[#FAF5EF]">Simran</p>
-                      <p className="mt-1.5 text-[7px] font-bold uppercase tracking-[0.2em] text-[#FAF5EF]/50">
-                        Founder & Creative Director
-                      </p>
-                    </div>
-                  </div>
-                  <a
-                    href="#collection"
-                    className="liquid-btn-wrapper group/discover px-5 py-3 transition-transform duration-300 hover:scale-105 hover:bg-[#F09DBB] hover:text-[#FAF5EF] active:scale-95"
-                    aria-label="Discover the Sabar collection"
-                  >
-                    Discover the edit{" "}
-                    <ArrowUpRight className="h-3.5 w-3.5 transition-colors duration-300 group-hover/discover:-translate-y-0.5 group-hover/discover:translate-x-0.5" />
-                  </a>
-                </div>
-                </Reveal>
-              </div>
-
-              <Reveal delay={160} variant="right" className="mx-auto w-full max-w-[500px]">
-              <figure className="relative mx-auto w-full max-w-[500px]">
-
-                <div className="liquid-glass-light relative rounded-[2.1rem] p-2.5 shadow-[0_28px_65px_-34px_rgba(74,59,66,0.4)] sm:rounded-[2.4rem] sm:p-3">
-                  <div className="relative aspect-square overflow-hidden rounded-[1.65rem] bg-[#FAF5EF]/10 sm:rounded-[1.9rem]">
-                    <img
-                      src="/images/story.jpg"
-                      alt="Hands draping blush silk in the Sabar by Simran atelier, surrounded by daisies and tailoring tools"
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover transition-colors duration-[1400ms] ease-out hover:scale-[1.035]"
-                    />
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-0 bg-linear-to-t from-darkText/65 via-darkText/5 to-transparent"
-                    />
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-0 bg-[#4A0E17]/15 mix-blend-multiply"
-                    />
-                    <span className="liquid-glass-light absolute left-3 top-3 rounded-full px-3 py-1.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF]/75 sm:left-4 sm:top-4">
-                      The Atelier · Dubai
-                    </span>
-
-                    <figcaption className="liquid-glass-light absolute inset-x-3 bottom-3 rounded-[1.2rem] px-4 py-3.5 sm:inset-x-4 sm:bottom-4 sm:px-5">
-                      <DaisyIcon className="mb-2 h-4 w-4 animate-float text-[#FAF5EF]" />
-                      <p className="font-serif text-lg italic leading-snug text-[#FAF5EF] sm:text-xl">
-                        “Elegance is not seen. It is felt.”
-                      </p>
-                      <p className="mt-2 text-[7px] font-bold uppercase tracking-[0.2em] text-[#FAF5EF]/55">
-                        Simran · Founder
-                      </p>
-                    </figcaption>
-                  </div>
-                </div>
-
-                <div className="absolute -left-9 top-1/2 hidden h-24 w-24 -translate-y-1/2 rounded-full border border-[#4A0E17]/30 bg-[#9EB79B] shadow-liquid backdrop-blur-md sm:flex lg:-left-12 lg:h-28 lg:w-28">
-                  <span className="flex h-full w-full flex-col items-center justify-center text-center text-[#FAF5EF]">
-                    <DaisyIcon className="h-5 w-5 animate-spin-slow" />
-                    <span className="mt-1 text-[6px] font-bold uppercase leading-[1.6] tracking-[0.13em]">
-                      Made with
-                      <br />
-                      sabar
-                    </span>
-                  </span>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-4 px-2">
-                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[#FAF5EF]/45">
-                    Hand-finished details
-                  </p>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[#FAF5EF]/45">
-                    Nº 03 / Atelier
-                  </p>
-                </div>
-              </figure>
-              </Reveal>
-            </div>
-
-            <Reveal delay={80} variant="fade">
-            <dl className="mt-16 grid grid-cols-2 gap-6 border-t border-[#4A0E17]/20 pt-8 sm:mt-20 sm:grid-cols-4">
-              {[
-                { term: "Atelier", detail: "Dubai, UAE" },
-                { term: "Pieces", detail: "Small batch" },
-                { term: "Delivery", detail: "Across the UAE" },
-                { term: "Established", detail: "2021" },
-              ].map((stat) => (
-                <div key={stat.term}>
-                  <dt className="text-[8px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF]/45">
-                    {stat.term}
-                  </dt>
-                  <dd className="mt-1.5 font-serif text-xl italic text-[#FAF5EF]/85">{stat.detail}</dd>
-                </div>
-              ))}
-            </dl>
-            </Reveal>
-          </div>
-        </section>
-
-        {/* SECURE CHECKOUT */}
-        <section
-          id="checkout"
-          aria-labelledby="checkout-heading"
-          className="relative scroll-mt-[140px] overflow-hidden bg-[#4A0E17] py-16 sm:py-20 lg:py-24"
-        >
-
-          <div className="relative mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10">
-            <Reveal variant="scale" threshold={0.08}>
-              <div className="liquid-glass-light relative overflow-hidden rounded-[2rem] p-4 sm:p-8 lg:p-10">
-
-                <header className="relative mb-7 flex flex-col gap-5 border-b border-[#4A0E17]/15 pb-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="max-w-xl">
-                    <p className="eyebrow flex items-center gap-3 text-[8px] text-[#FAF5EF]/50">
-                      <span className="hairline text-[#FAF5EF]" aria-hidden="true" /> 04 — Secure
-                      Checkout
-                    </p>
-                    <SplitText
-                      as="h2"
-                      id="checkout-heading"
-                      text={`Secure Checkout in ${currency}`}
-                      delay={60}
-                      stagger={65}
-                      className="editorial-heading mt-3 text-[clamp(2.3rem,4.5vw,3.6rem)] leading-[1.02] text-[#FAF5EF]"
-                    />
-                    <p className="mt-3 max-w-md text-sm leading-relaxed text-[#FAF5EF]/60">
-                      Direct one-page checkout for a seamless experience.
-                    </p>
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#FAF5EF]/45">
-                      Complimentary delivery across the UAE · Displayed in {currency}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="liquid-glass-light inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/65">
-                      <LockIcon className="h-3.5 w-3.5" /> SSL secured
-                    </span>
-                    <span className="liquid-glass-light inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/65">
-                      <TruckIcon className="h-3.5 w-3.5" /> Free UAE delivery
-                    </span>
-                  </div>
-                </header>
-
-                {orderPlaced ? (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    className="animate-success-pop relative overflow-hidden rounded-2xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 px-5 py-9 text-center sm:px-10 sm:py-12"
-                  >
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-[#FAF5EF]/8 blur-2xl"
-                    />
-                    <span className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#4A0E17]/30 bg-[#9EB79B] text-[#FAF5EF] shadow-liquid">
-                      <CheckIcon className="h-7 w-7" />
-                    </span>
-                    <p className="eyebrow relative mt-4 text-[#FAF5EF]/55">Order confirmed</p>
-                    <h3 className="editorial-heading relative mt-2 text-[clamp(2rem,4vw,3rem)] leading-tight text-[#FAF5EF]">
-                      Beautifully done, {orderPlaced.customerName}.
-                    </h3>
-                    <p className="relative mx-auto mt-3 max-w-md text-[12px] leading-[1.8] text-[#FAF5EF]/65">
-                      Your order has been received at our Dubai atelier. A stylist will confirm your
-                      delivery details on WhatsApp shortly.
-                    </p>
-                    <dl className="relative mx-auto mt-7 grid max-w-2xl grid-cols-2 gap-3 text-left sm:grid-cols-4">
-                      <div className="rounded-xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 px-3.5 py-3">
-                        <dt className="text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/45">Order</dt>
-                        <dd className="mt-1 text-[11px] font-bold text-[#FAF5EF]">{orderPlaced.reference}</dd>
-                      </div>
-                      <div className="rounded-xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 px-3.5 py-3">
-                        <dt className="text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/45">Total</dt>
-                        <dd className="mt-1 text-[11px] font-bold text-[#FAF5EF]">
-                          {formatMoney(orderPlaced.totalAed, currency)}
-                        </dd>
-                      </div>
-                      <div className="rounded-xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 px-3.5 py-3">
-                        <dt className="text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/45">Payment</dt>
-                        <dd className="mt-1 text-[11px] font-bold text-[#FAF5EF]">
-                          {PAYMENT_OPTIONS.find((option) => option.id === orderPlaced.payment)?.label ??
-                            "Secure payment"}
-                        </dd>
-                      </div>
-                      <div className="rounded-xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 px-3.5 py-3">
-                        <dt className="text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/45">Delivery</dt>
-                        <dd className="mt-1 text-[11px] font-bold text-[#FAF5EF]">2–4 working days</dd>
-                      </div>
-                    </dl>
-                    <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                      <a
-                        href="#collection"
-                        onClick={resetCheckout}
-                        className="liquid-btn-wrapper px-6 py-3.5 transition-transform duration-300 hover:scale-105 hover:bg-[#F09DBB] hover:text-[#FAF5EF] active:scale-95"
-                        aria-label="Continue browsing the collection"
-                      >
-                        Continue browsing
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={resetCheckout}
-                        className="liquid-btn-wrapper liquid-btn-solid px-6 py-3.5 transition-transform duration-300 hover:scale-105 active:scale-95"
-                        aria-label="Start a new order"
-                      >
-                        Start a new order
-                      </button>
-                    </div>
-                    <p className="relative mt-4 text-[8px] font-medium uppercase tracking-[0.14em] text-[#FAF5EF]/40">
-                      Need help? hello@sabarbysimran.ae
-                    </p>
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={placeOrder}
-                    noValidate
-                    aria-label="Secure checkout"
-                    className="relative grid grid-cols-1 gap-8 lg:grid-cols-2"
-                  >
-                    {/* LEFT — CUSTOMER & PAYMENT */}
-                    <div className="flex flex-col gap-7">
-                      <fieldset>
-                        <legend className="mb-5 flex w-full items-center gap-3 border-b border-[#4A0E17]/15 pb-3">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/20 bg-[#FAF5EF]/10 text-[9px] font-bold text-[#FAF5EF]">
-                            01
-                          </span>
-                          <span>
-                            <span className="block font-serif text-2xl italic leading-none text-[#FAF5EF]">
-                              Customer Details
-                            </span>
-                            <span className="mt-1.5 block text-[8px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/45">
-                              Where should we deliver your pieces?
-                            </span>
-                          </span>
-                        </legend>
-
-                        <div className="space-y-4">
-                          <div>
-                            <label
-                              htmlFor="checkout-full-name"
-                              className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/65"
-                            >
-                              Full Name <span className="text-[#FAF5EF]/40">Required</span>
-                            </label>
-                            <input
-                              id="checkout-full-name"
-                              name="fullName"
-                              type="text"
-                              autoComplete="name"
-                              placeholder="e.g. Layla Al Mansouri"
-                              value={customer.fullName}
-                              onChange={(event) => updateCustomerField("fullName", event.target.value)}
-                              required
-                              aria-required="true"
-                              aria-invalid={Boolean(checkoutErrors.fullName)}
-                              aria-describedby={checkoutErrors.fullName ? "checkout-full-name-error" : undefined}
-                              className={`${CHECKOUT_INPUT_CLASSES(Boolean(checkoutErrors.fullName))} scroll-mt-28`}
-                            />
-                            {checkoutErrors.fullName && (
-                              <p
-                                id="checkout-full-name-error"
-                                role="alert"
-                                className="mt-1.5 text-[10px] font-semibold text-[#B84E4E]"
-                              >
-                                {checkoutErrors.fullName}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="checkout-phone"
-                              className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/65"
-                            >
-                              Phone Number <span className="text-[#FAF5EF]/40">Required</span>
-                            </label>
-                            <input
-                              id="checkout-phone"
-                              name="phone"
-                              type="tel"
-                              inputMode="tel"
-                              autoComplete="tel"
-                              placeholder="+971 50 123 4567"
-                              value={customer.phone}
-                              onChange={(event) => updateCustomerField("phone", event.target.value)}
-                              required
-                              aria-required="true"
-                              aria-invalid={Boolean(checkoutErrors.phone)}
-                              aria-describedby={checkoutErrors.phone ? "checkout-phone-error" : undefined}
-                              className={`${CHECKOUT_INPUT_CLASSES(Boolean(checkoutErrors.phone))} scroll-mt-28`}
-                            />
-                            {checkoutErrors.phone && (
-                              <p
-                                id="checkout-phone-error"
-                                role="alert"
-                                className="mt-1.5 text-[10px] font-semibold text-[#B84E4E]"
-                              >
-                                {checkoutErrors.phone}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="checkout-address"
-                              className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/65"
-                            >
-                              Delivery Address <span className="text-[#FAF5EF]/40">Required</span>
-                            </label>
-                            <input
-                              id="checkout-address"
-                              name="address"
-                              type="text"
-                              autoComplete="street-address"
-                              placeholder="Villa / apartment, street, emirate"
-                              value={customer.address}
-                              onChange={(event) => updateCustomerField("address", event.target.value)}
-                              required
-                              aria-required="true"
-                              aria-invalid={Boolean(checkoutErrors.address)}
-                              aria-describedby={checkoutErrors.address ? "checkout-address-error" : undefined}
-                              className={`${CHECKOUT_INPUT_CLASSES(Boolean(checkoutErrors.address))} scroll-mt-28`}
-                            />
-                            {checkoutErrors.address && (
-                              <p
-                                id="checkout-address-error"
-                                role="alert"
-                                className="mt-1.5 text-[10px] font-semibold text-[#B84E4E]"
-                              >
-                                {checkoutErrors.address}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="mt-3 flex items-start gap-1.5 text-[9px] leading-relaxed text-[#FAF5EF]/45">
-                          <ShieldIcon className="mt-px h-3 w-3 shrink-0" />
-                          Your details are used only to deliver this order. No marketing, ever.
-                        </p>
-                      </fieldset>
-
-                      <fieldset aria-describedby="payment-help">
-                        <legend className="mb-4 flex w-full items-center gap-3 border-b border-[#4A0E17]/15 pb-3">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/20 bg-[#FAF5EF]/10 text-[9px] font-bold text-[#FAF5EF]">
-                            02
-                          </span>
-                          <span className="flex flex-1 items-center justify-between gap-2">
-                            <span className="block font-serif text-2xl italic leading-none text-[#FAF5EF]">
-                              Payment Method
-                            </span>
-                            <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/40">
-                              <LockIcon className="h-3 w-3" /> Encrypted
-                            </span>
-                          </span>
-                        </legend>
-
-                        <div
-                          role="radiogroup"
-                          aria-label="Payment method"
-                          aria-describedby="payment-help"
-                          className="grid grid-cols-2 gap-3"
-                        >
-                          {PAYMENT_OPTIONS.map((option) => {
-                            const isActive = paymentMethod === option.id;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                role="radio"
-                                aria-checked={isActive}
-                                aria-label={`Select ${option.label} for checkout`}
-                                onClick={() => choosePaymentMethod(option.id)}
-                                className={`relative flex w-full cursor-pointer items-center gap-2.5 rounded-xl p-3 text-left transition-transform duration-300 hover:scale-[1.02] hover:bg-[#FAF5EF]/10 sm:p-4 ${
-                                  isActive
-                                    ? "scale-[1.02] border-2 border-[#E87272] bg-[#FAF5EF]/10 shadow-[0_0_15px_rgba(232,114,114,0.3)]"
-                                    : "border border-[#4A0E17]/20 bg-[#FAF5EF]/10"
-                                }`}
-                              >
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/10 bg-[#FAF5EF]/10 text-[#FAF5EF]">
-                                  {option.icon}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[11px] font-bold leading-tight text-[#FAF5EF] sm:text-[12px]">
-                                    {option.label}
-                                  </span>
-                                  <span className="mt-1 block text-[8px] font-semibold uppercase leading-tight tracking-[0.08em] text-[#FAF5EF]/50">
-                                    {option.detail}
-                                  </span>
-                                </span>
-                                <span
-                                  aria-hidden="true"
-                                  className={`absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border transition-colors duration-300 ${
-                                    isActive
-                                      ? "border-[#E87272] bg-[#E87272] text-[#FAF5EF] opacity-100"
-                                      : "border-[#4A0E17]/15 bg-[#FAF5EF]/10 text-transparent opacity-60"
-                                  }`}
-                                >
-                                  <CheckIcon className="h-2.5 w-2.5" />
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <p
-                          id="payment-help"
-                          aria-live="polite"
-                          className="mt-3 flex min-h-4 items-center gap-1.5 text-[9px] leading-relaxed text-[#FAF5EF]/50"
-                        >
-                          <LockIcon className="h-3 w-3 shrink-0" />
-                          {selectedPayment
-                            ? `${selectedPayment.label} selected — you’ll confirm securely when you place your order.`
-                            : "Choose a payment method to continue."}
-                        </p>
-                        {checkoutErrors.payment && (
-                          <p role="alert" className="mt-1 text-[10px] font-semibold text-[#B84E4E]">
-                            {checkoutErrors.payment}
-                          </p>
-                        )}
-
-                        <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/40 bg-[#FAF5EF]/10 px-3 py-2.5">
-                          <ShieldIcon className="h-4 w-4 shrink-0 text-[#FAF5EF]/60" />
-                          <p className="text-[8px] font-semibold uppercase leading-relaxed tracking-[0.1em] text-[#FAF5EF]/50">
-                            256-bit encrypted · Card details never stored by Sabar
-                          </p>
-                        </div>
-                      </fieldset>
-                    </div>
-
-                    {/* RIGHT — ORDER SUMMARY. The ambient frame floats gently
-                        while the interactive card stays still for precise input. */}
-                    <div className="relative">
-                      <div
-                        aria-hidden="true"
-                        className="animate-float pointer-events-none absolute -inset-2 rounded-[1.7rem] border border-white/40 bg-[#FAF5EF]/10 shadow-[0_22px_55px_-30px_rgba(74,59,66,0.5)] will-change-transform motion-reduce:animate-none sm:-inset-3"
-                      />
-                      <aside
-                        aria-labelledby="order-summary-heading"
-                        className="relative overflow-hidden rounded-2xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 p-6 shadow-[0_20px_50px_-25px_rgba(74,59,66,0.45)]"
-                      >
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#FAF5EF]/5 blur-2xl"
-                        />
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-[#FAF5EF]/20 blur-2xl"
-                        />
-
-                        <div className="relative flex items-start justify-between gap-3">
-                          <div>
-                            <p className="eyebrow flex items-center gap-2 text-[8px] text-[#FAF5EF]/45">
-                              <DaisyIcon className="h-3.5 w-3.5" /> Your edit
-                            </p>
-                            <h3
-                              id="order-summary-heading"
-                              className="mt-1.5 font-serif text-[1.65rem] italic leading-none text-[#FAF5EF]"
-                            >
-                              Order Summary
-                            </h3>
-                          </div>
-                          <span className="shrink-0 rounded-full border border-daisyGreen/50 bg-[#9EB79B]/35 px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/70">
-                            {checkoutPieceCount} {checkoutPieceCount === 1 ? "piece" : "pieces"}
-                          </span>
-                        </div>
-
-                        <ul className="relative mt-5 max-h-[17rem] space-y-3 overflow-y-auto pr-1 no-scrollbar">
-                          {checkoutItems.map(({ product, quantity, size, lineKey }) => (
-                            <li
-                              key={lineKey}
-                              className="flex items-center gap-3 rounded-xl border border-[#4A0E17]/20 bg-[#FAF5EF]/10 p-2.5"
-                            >
-                              <div className="relative h-[68px] w-[54px] shrink-0 overflow-hidden rounded-lg border border-[#4A0E17]/30 bg-[#FAF5EF]">
-                                <img
-                                  src={product.image}
-                                  alt={product.imageAlt}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="h-full w-full object-cover transition-transform duration-500 ease-out hover:scale-105"
-                                />
-                                <span className="absolute bottom-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-darkText px-1 text-[7px] font-bold text-daisyYellow">
-                                  {quantity}
-                                </span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="truncate font-serif text-[15px] italic leading-tight text-[#FAF5EF]">
-                                      {product.name}
-                                    </p>
-                                    <p className="mt-1 truncate text-[7px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/45">
-                                      {product.category} · {product.colour} · Size {size}
-                                    </p>
-                                  </div>
-                                  <p className="shrink-0 text-[11px] font-bold text-[#FAF5EF]">
-                                    {formatMoney(product.price * quantity, currency)}
-                                  </p>
-                                </div>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <div className="flex items-center rounded-full border border-[#4A0E17]/15 bg-[#FAF5EF]/10">
-                                    <button
-                                      type="button"
-                                      onClick={() => adjustCheckoutQuantity(lineKey, -1)}
-                                      disabled={quantity <= 1}
-                                      aria-label={`Decrease quantity of ${product.name}, size ${size}`}
-                                      className="flex h-6 w-6 items-center justify-center rounded-full text-[#FAF5EF]/60 transition hover:bg-[#FAF5EF]/30 hover:text-[#FAF5EF] disabled:cursor-not-allowed disabled:opacity-30"
-                                    >
-                                      <MinusIcon className="h-2.5 w-2.5" />
-                                    </button>
-                                    <span className="min-w-5 text-center text-[10px] font-bold tabular-nums text-[#FAF5EF]">
-                                      {quantity}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => adjustCheckoutQuantity(lineKey, 1)}
-                                      aria-label={`Increase quantity of ${product.name}, size ${size}`}
-                                      className="flex h-6 w-6 items-center justify-center rounded-full text-[#FAF5EF]/60 transition hover:bg-[#FAF5EF]/30 hover:text-[#FAF5EF]"
-                                    >
-                                      <PlusIcon className="h-2.5 w-2.5" />
-                                    </button>
-                                  </div>
-                                  <span className="text-[7px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/35">
-                                    {isFeaturedCheckout ? "Featured piece" : "In your edit"}
-                                  </span>
-                                </div>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-
-                        <div className="relative mt-5 space-y-2.5 border-t border-[#4A0E17]/15 pt-4 text-[11px] text-[#FAF5EF]/70">
-                          <div className="flex items-center justify-between gap-3">
-                            <span>Subtotal</span>
-                            <span className="font-bold text-[#FAF5EF]">
-                              {formatMoney(checkoutSubtotalAed, currency)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span>Shipping</span>
-                            <span className="flex items-center gap-1 font-semibold text-[#FAF5EF]">
-                              <DaisyIcon className="h-3 w-3" /> Complimentary
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span>Taxes</span>
-                            <span className="font-semibold text-[#FAF5EF]">Included</span>
-                          </div>
-                        </div>
-
-                        <div className="relative mt-4 flex items-end justify-between gap-3 border-t border-[#4A0E17]/20 pt-4">
-                          <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF]/55">
-                            Total
-                          </span>
-                          <div className="text-right">
-                            <p
-                              className="font-serif text-[1.7rem] font-semibold leading-none text-[#FAF5EF]"
-                              aria-live="polite"
-                            >
-                              {checkoutTotalLabel}
-                            </p>
-                            <p className="mt-1 text-[7px] font-semibold uppercase tracking-[0.12em] text-[#FAF5EF]/40">
-                              VAT included
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="submit"
-                          aria-label={`Place order for ${checkoutTotalLabel}`}
-                          className="animate-pulse-glow relative mt-6 w-full rounded-xl bg-[#E87272] py-4 text-[11px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF] shadow-lg transition-transform duration-300 hover:scale-[1.02] hover:bg-[#d15d5d] active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#E87272] focus:ring-offset-2 focus:ring-offset-white/30"
-                        >
-                          <span className="flex items-center justify-center gap-2">
-                            <LockIcon className="h-4 w-4" />
-                            Place Order <span aria-hidden="true">•</span>{" "}
-                            <span>{checkoutTotalLabel}</span>
-                          </span>
-                        </button>
-
-                        <div className="relative mt-3 flex items-center justify-between gap-2 border-t border-[#4A0E17]/10 pt-3">
-                          <span className="flex items-center gap-1 text-[7px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/45">
-                            <ShieldIcon className="h-3 w-3" /> SSL secured
-                          </span>
-                          <span className="text-[7px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/40">
-                            Apple Pay · Visa · COD
-                          </span>
-                        </div>
-
-                        <p className="relative mt-3 flex items-center justify-center gap-1.5 text-center text-[8px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/45">
-                          <TruckIcon className="h-3.5 w-3.5" /> UAE delivery in 2–4 working days
-                        </p>
-                      </aside>
-
-                      <div className="relative mt-4 rounded-xl border border-white/40 bg-[#FAF5EF]/10 px-4 py-3.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex min-w-0 items-start gap-2.5">
-                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/10 bg-[#FAF5EF]/10 text-[#FAF5EF]">
-                              <FlamingoMark className="h-4.5 w-4.5" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/70">
-                                Prefer a personal touch?
-                              </p>
-                              <p className="mt-1 text-[9px] leading-[1.65] text-[#FAF5EF]/50">
-                                Our Dubai stylists can size, gift-wrap and arrange your delivery
-                                personally.
-                              </p>
-                            </div>
-                          </div>
-                          <a
-                            href="mailto:hello@sabarbysimran.ae?subject=Checkout%20assistance"
-                            aria-label="Email a Sabar stylist for checkout assistance"
-                            className="group/stylist inline-flex shrink-0 items-center gap-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/70 transition hover:text-[#FAF5EF]"
-                          >
-                            <span className="link-underline">Ask a stylist</span>
-                            <ArrowUpRight className="h-3 w-3 transition-colors duration-300 group-hover/stylist:-translate-y-0.5 group-hover/stylist:translate-x-0.5" />
-                          </a>
-                        </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[#4A0E17]/10 pt-2.5 sm:gap-x-4">
-                          <span className="flex items-center gap-1.5 text-[8px] font-semibold text-[#FAF5EF]/45">
-                            <MailIcon className="h-3 w-3" /> hello@sabarbysimran.ae
-                          </span>
-                          <span className="flex items-center gap-1.5 text-[8px] font-semibold text-[#FAF5EF]/45">
-                            <WhatsAppIcon className="h-3 w-3" /> +971 4 000 0000
-                          </span>
-                          <span className="ml-auto flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.08em] text-[#FAF5EF]/45">
-                            <DaisyIcon className="h-3 w-3" /> Gift notes available
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </form>
-                )}
-
-                <div className="relative mt-8 flex flex-col gap-4 border-t border-[#4A0E17]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                    {[
-                      { icon: TruckIcon, label: "Complimentary delivery" },
-                      { icon: ShieldIcon, label: "14-day considered returns" },
-                      { icon: LockIcon, label: "Private & protected" },
-                    ].map(({ icon: TrustIcon, label }) => (
-                      <span
-                        key={label}
-                        className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#FAF5EF]/50"
-                      >
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#9EB79B]/45 text-[#FAF5EF]">
-                          <TrustIcon className="h-3.5 w-3.5" />
-                        </span>
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#FAF5EF]/40">
-                    <MapPinIcon className="h-3.5 w-3.5" /> Fulfilled from Dubai, UAE
-                  </p>
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </section>
       </main>
 
       {/* FOOTER */}
-      <footer id="contact" className="relative scroll-mt-[140px] overflow-hidden bg-[#4A0E17] pb-16 pt-14 sm:pb-3 sm:pt-16">
+      <footer id="contact" className="relative overflow-hidden bg-[#4A0E17] pb-16 pt-14 sm:pb-3 sm:pt-16">
 
         <Reveal className="relative mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10" threshold={0.05}>
           <div className="grid gap-10 border-t border-[#4A0E17]/20 pb-12 pt-12 sm:grid-cols-2 lg:grid-cols-[1.35fr_0.75fr_0.75fr_0.75fr] lg:gap-12">
             <div>
-              <Wordmark size="md" href="#home" ariaLabel="Sabar by Simran — back to top" />
+              <Wordmark size="md" href="#home" ariaLabel="Sabr by Simran — back to top" />
               <p className="mt-5 max-w-[29ch] text-[12px] font-normal leading-[1.8] text-[#FAF5EF]/70">
                 Quietly luxurious pieces for the woman writing her own story. Designed and hand-finished
                 in Dubai, under the Daisy Dreams sky.
@@ -1919,7 +927,7 @@ export default function Home() {
                       href={href}
                       target="_blank"
                       rel="noreferrer"
-                      aria-label={`Sabar by Simran on ${label}`}
+                      aria-label={`Sabr by Simran on ${label}`}
                       className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4A0E17]/15 bg-[#FAF5EF]/10 text-[#FAF5EF]/65 transition hover:border-darkText/35 hover:bg-[#FAF5EF] hover:text-[#FAF5EF]"
                     >
                       <SocialIcon className="h-3.5 w-3.5" />
@@ -1937,12 +945,23 @@ export default function Home() {
                 <ul className="mt-4 space-y-2.5">
                   {column.links.map((link) => (
                     <li key={link.label}>
-                      <a
-                        href={link.href}
-                        className="link-underline text-[11px] font-medium text-[#FAF5EF]/65 transition-colors duration-300 hover:text-[#FAF5EF]"
-                      >
-                        {link.label}
-                      </a>
+                      {link.policy ? (
+                        <button
+                          type="button"
+                          data-policy={link.policy}
+                          onClick={link.policy === "return" ? openReturnPolicy : openShippingPolicy}
+                          className="link-underline text-[11px] font-medium text-[#FAF5EF]/65 transition-colors duration-300 hover:text-[#FAF5EF] w-full text-left"
+                        >
+                          {link.label}
+                        </button>
+                      ) : (
+                        <a
+                          href={link.href}
+                          className="link-underline text-[11px] font-medium text-[#FAF5EF]/65 transition-colors duration-300 hover:text-[#FAF5EF]"
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1952,7 +971,7 @@ export default function Home() {
 
           <div className="flex flex-col gap-4 border-t border-[#4A0E17]/20 py-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#FAF5EF]/55">
-              © 2026 Sabar by Simran. All rights reserved.
+              © 2026 Sabr by Simran. All rights reserved.
             </p>
             <div className="flex flex-wrap items-center gap-3 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#FAF5EF]/50">
               <span className="flex items-center gap-1.5">
@@ -1973,256 +992,13 @@ export default function Home() {
         </Reveal>
       </footer>
 
-      {selectedProduct && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-5">
-          <button
-            type="button"
-            aria-label="Close product details"
-            onClick={closeProduct}
-            tabIndex={-1}
-            className="absolute inset-0 h-full w-full cursor-default bg-black/40 backdrop-blur-md"
-          />
-
-          <section
-            ref={productModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="product-modal-title"
-            aria-describedby="product-modal-description"
-            className="animate-sheet-in relative z-10 max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-[2rem] border border-[#4A0E17]/30 bg-[#4A0E17]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_35px_100px_-30px_rgba(44,28,35,0.65)] backdrop-blur-2xl sm:max-w-[940px] sm:rounded-[2rem] sm:pb-0"
-          >
-            <button
-              ref={productModalCloseRef}
-              type="button"
-              onClick={closeProduct}
-              aria-label="Close product details"
-              className="absolute right-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-[#4A0E17]/75 text-[#FAF5EF] shadow-liquid backdrop-blur-md transition-transform duration-300 hover:rotate-90 hover:bg-[#FAF5EF] focus:outline-none focus:ring-2 focus:ring-[#E87272] sm:right-4 sm:top-4"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-
-            <div className="mx-auto flex max-w-full items-center justify-center pt-2 sm:hidden" aria-hidden="true">
-              <span className="h-1 w-10 rounded-full bg-darkText/25" />
-            </div>
-
-            <div className="grid md:grid-cols-[0.92fr_1.08fr]">
-              {/* Product image */}
-              <div className="relative mt-2 h-[38vh] min-h-[250px] overflow-hidden rounded-t-[1.5rem] bg-[#FAF5EF] sm:mt-0 sm:h-auto sm:min-h-[560px] sm:rounded-l-[2rem] sm:rounded-tr-none md:rounded-r-none">
-                <img
-                  src={selectedProduct.image}
-                  alt={selectedProduct.imageAlt}
-                  loading="lazy"
-                  decoding="async"
-                  className="absolute inset-0 h-full w-full object-cover object-center"
-                />
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-linear-to-t from-darkText/55 via-darkText/5 to-transparent"
-                />
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-[#4A0E17]/10 mix-blend-multiply"
-                />
-
-                <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
-                  <span className="liquid-glass-light rounded-full px-3 py-1.5 text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]/75">
-                    {selectedProduct.category}
-                  </span>
-                  {selectedProduct.badge && (
-                    <span className="rounded-full bg-[#9EB79B] px-3 py-1.5 text-[7px] font-bold uppercase tracking-[0.16em] text-[#FAF5EF]">
-                      {selectedProduct.badge}
-                    </span>
-                  )}
-                </div>
-
-                <div className="liquid-glass-light absolute inset-x-4 bottom-4 rounded-[1.1rem] px-4 py-3">
-                  <p className="text-[7px] font-bold uppercase tracking-[0.18em] text-[#FAF5EF]/50">
-                    Sabar by Simran · SS26
-                  </p>
-                  <p className="mt-1 font-serif text-base italic leading-tight text-[#FAF5EF]">
-                    Cut, draped and finished in Dubai.
-                  </p>
-                </div>
-              </div>
-
-              {/* Product detail */}
-              <div className="relative flex flex-col p-5 pb-6 pt-4 sm:p-8 sm:pt-10">
-                <div className="flex items-center justify-between gap-3 pr-12">
-                  <p className="eyebrow text-[8px] text-[#FAF5EF]/50">
-                    {selectedProduct.category} <span className="mx-1 text-[#FAF5EF]/25">·</span>{" "}
-                    {selectedProduct.colour}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => toggleSaved(selectedProduct)}
-                    aria-pressed={saved.has(selectedProduct.id)}
-                    aria-label={
-                      saved.has(selectedProduct.id)
-                        ? `Remove ${selectedProduct.name} from your wishlist`
-                        : `Save ${selectedProduct.name} to your wishlist`
-                    }
-                    className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#4A0E17]/30 bg-[#FAF5EF]/10 text-[#FAF5EF]/65 transition-transform duration-300 hover:scale-110 hover:bg-[#FAF5EF] hover:text-[#FAF5EF] sm:flex"
-                  >
-                    <HeartIcon filled={saved.has(selectedProduct.id)} className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                <h2
-                  id="product-modal-title"
-                  className="editorial-heading mt-3 pr-10 text-[clamp(2rem,4.5vw,3rem)] leading-[1.02] text-[#FAF5EF] sm:pr-12"
-                >
-                  {selectedProduct.name}
-                </h2>
-
-                <div className="mt-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <p className="text-lg font-bold tracking-[0.02em] text-[#FAF5EF]">
-                    {formatMoney(selectedProduct.price, currency)}
-                  </p>
-                  <span className="text-[8px] font-semibold uppercase tracking-[0.12em] text-[#FAF5EF]/40">
-                    VAT included · Limited run
-                  </span>
-                </div>
-
-                <p
-                  id="product-modal-description"
-                  className="mt-4 max-w-prose text-[12px] font-normal leading-[1.8] text-[#FAF5EF]/65"
-                >
-                  {selectedProduct.description}
-                </p>
-
-                <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-[#4A0E17]/10 py-3">
-                  <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.1em] text-[#FAF5EF]/55">
-                    <span className="h-2 w-2 rounded-full bg-[#FAF5EF]/10 ring-1 ring-darkText/20" />
-                    {selectedProduct.colour}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.1em] text-[#FAF5EF]/55">
-                    <DaisyIcon className="h-3 w-3" /> Hand-finished
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[0.1em] text-[#FAF5EF]/55">
-                    <MapPinIcon className="h-3 w-3" /> Made in the UAE
-                  </span>
-                </div>
-
-                <div className="mt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p
-                      id="product-size-label"
-                      className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#FAF5EF]/70"
-                    >
-                      Select your size
-                      {selectedSize && (
-                        <span className="rounded-full bg-[#9EB79B]/60 px-2 py-0.5 text-[7px] tracking-[0.1em] text-[#FAF5EF]">
-                          {selectedSize}
-                        </span>
-                      )}
-                    </p>
-                    <span className="flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/40">
-                      <RulerIcon className="h-3.5 w-3.5" /> True to size
-                    </span>
-                  </div>
-
-                  <div
-                    role="radiogroup"
-                    aria-labelledby="product-size-label"
-                    className="mt-2.5 grid grid-cols-4 gap-2"
-                  >
-                    {selectedProduct.sizes.map((size) => {
-                      const isSelected = selectedSize === size;
-                      return (
-                        <button
-                          key={size}
-                          type="button"
-                          role="radio"
-                          aria-checked={isSelected}
-                          aria-label={`Size ${size}`}
-                          onClick={() => setSelectedSize(size)}
-                          className={`rounded-xl border py-3 text-[11px] font-bold transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-[#E87272] focus:ring-offset-2 focus:ring-offset-basePink ${
-                            isSelected
-                              ? "border-[#E87272] bg-[#E87272] text-[#FAF5EF] shadow-[0_8px_22px_-10px_rgba(232,114,114,0.85)]"
-                              : "border-[#4A0E17]/30 bg-[#FAF5EF]/10 text-[#FAF5EF]/65 hover:border-[#E87272]/45 hover:text-[#FAF5EF]"
-                          }`}
-                        >
-                          {size}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <p className="mt-2 min-h-4 text-[9px] text-[#FAF5EF]/45" aria-live="polite">
-                    {selectedSize
-                      ? `Size ${selectedSize} selected — ready for your edit.`
-                      : "Choose a size to add this piece to your cart."}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!selectedProduct || !selectedSize) return;
-                    addToCart(selectedProduct, selectedSize);
-                    closeProduct();
-                  }}
-                  disabled={!selectedSize}
-                  aria-label={
-                    selectedSize
-                      ? `Add ${selectedProduct.name}, size ${selectedSize}, to cart for ${formatMoney(
-                          selectedProduct.price,
-                          currency
-                        )}`
-                      : `Select a size before adding ${selectedProduct.name} to cart`
-                  }
-                  className={`mt-3 w-full rounded-xl py-4 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors duration-300 ${
-                    selectedSize
-                      ? "animate-pulse-glow bg-[#E87272] text-[#FAF5EF] shadow-lg hover:scale-[1.02] hover:bg-[#d15d5d] active:scale-95" 
-                      : "cursor-not-allowed border border-[#4A0E17]/15 bg-darkText/10 text-[#FAF5EF]/55"
-                  }`}
-                >
-                  {selectedSize ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <BagIcon className="h-4 w-4" />
-                      Add to Cart <span aria-hidden="true">•</span>{" "}
-                      {formatMoney(selectedProduct.price, currency)}
-                    </span>
-                  ) : (
-                    "Select a Size"
-                  )}
-                </button>
-
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[8px] font-semibold uppercase tracking-[0.1em] text-[#FAF5EF]/45">
-                  <span className="flex items-center gap-1.5">
-                    <TruckIcon className="h-3.5 w-3.5" /> Complimentary UAE delivery
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <ShieldIcon className="h-3.5 w-3.5" /> 14-day returns
-                  </span>
-                </div>
-
-                <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[8px] text-[#FAF5EF]/40">
-                  <LockIcon className="h-3 w-3" /> Secure checkout · Pay with Apple Pay, card or COD
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      <CartDrawer
-        open={cartOpen}
-        onClose={closeCart}
-        items={cartItems}
-        currency={currency}
-        onQuantityChange={changeQuantity}
-        onRemove={removeFromCart}
-        onCheckout={proceedToCheckout}
-      />
-
       {/* FLOATING WHATSAPP CONCIERGE */}
-      {navReady && !cartOpen && !selectedProduct && (
+      {navReady && !cartOpen && (
         <a
           href="https://wa.me/971XXXXXXXXX"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Chat with Sabar by Simran on WhatsApp"
+          aria-label="Chat with Sabr by Simran on WhatsApp"
           className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
         >
           <span className="pointer-events-none absolute right-full mr-3 flex translate-x-2 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#4A0E17]/30 bg-[#FAF5EF]/10 px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.13em] text-[#FAF5EF] opacity-0 shadow-liquid backdrop-blur-xl transition-colors duration-300 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100">
@@ -2285,6 +1061,22 @@ export default function Home() {
             )}.`
           : "Your shopping bag is empty."}
       </span>
+      <PolicyModal
+        isOpen={returnPolicyOpen}
+        onClose={() => setReturnPolicyOpen(false)}
+        title="Return & Exchange Policy"
+      >
+        <p>Return & Exchange Policy placeholder text. Our pieces are made in small batches and we want you to love your purchase. If you need to return or exchange, please contact us within 14 days of delivery.</p>
+        <p>Items must be unworn, unwashed, and with all original tags attached. Custom or made-to-order items are final sale.</p>
+      </PolicyModal>
+      <PolicyModal
+        isOpen={shippingPolicyOpen}
+        onClose={() => setShippingPolicyOpen(false)}
+        title="Shipping Policy"
+      >
+        <p>Shipping Policy placeholder text. We offer complimentary delivery across the UAE within 3–5 business days.</p>
+        <p>Orders placed before 2 PM are dispatched same day. For international shipping, please contact our atelier.</p>
+      </PolicyModal>
     </div>
   );
 }

@@ -22,8 +22,14 @@ export type Product = {
   colour: string;
   image: string;
   imageAlt: string;
+  /** Native pixel width of the source image, used for CLS-free <img> tags. */
+  imageWidth: number;
+  /** Native pixel height of the source image, used for CLS-free <img> tags. */
+  imageHeight: number;
   /** Short product-summary line used on the collection card. */
   note: string;
+  /** Minimal editorial caption rendered as a small badge on the collection card. */
+  microcopy?: string;
   /** Longer editorial description used in the product detail view. */
   description: string;
   sizes: string[];
@@ -34,57 +40,69 @@ export const PRODUCTS: Product[] = [
   {
     id: "black-swan",
     name: "The Black Swan",
-    price: 450,
+    price: 1000,
     category: "Eveningwear",
     colour: "Noir silk",
     image: "/The Black Swan.png",
     imageAlt: "The Black Swan — sculptural black satin evening dress",
+    imageWidth: 1180,
+    imageHeight: 1600,
     note: "Bias-cut liquid satin with a hand-draped neckline.",
     description:
       "Our signature after-dark silhouette, cut on the bias so the satin moves with you. A hand-draped neckline and open back keep the line sculptural, never severe.",
     sizes: ["S", "M", "L", "XL"],
     badge: "Signature",
+    microcopy: "A silhouette of its own",
   },
   {
     id: "eclat",
     name: "The Éclat",
-    price: 380,
+    price: 800,
     category: "Occasion",
     colour: "Blush satin",
     image: "/The Éclat.png",
     imageAlt: "The Éclat — blush pink satin column dress with a shoulder bow",
+    imageWidth: 1200,
+    imageHeight: 1600,
     note: "A soft rose column, finished with a sculptural bow.",
     description:
       "A quiet entrance piece in blush satin. The column cut skims rather than clings, while an asymmetric shoulder bow gives The Éclat its soft, unmistakable presence.",
     sizes: ["S", "M", "L", "XL"],
     badge: "New in",
+    microcopy: "The new feminine",
   },
   {
     id: "espresso",
     name: "The Espresso",
-    price: 520,
+    price: 1500,
     category: "Tailoring",
     colour: "Espresso",
     image: "/The Espresso.png",
     imageAlt: "The Espresso — chocolate brown tailored blazer and wide-leg trousers",
+    imageWidth: 1200,
+    imageHeight: 1600,
     note: "Sharp, feminine tailoring in a warm chocolate palette.",
     description:
       "A modern two-piece in deep chocolate. The single-breasted blazer is nipped at the waist and paired with a fluid wide-leg trouser — boardroom sharp, entirely feminine.",
     sizes: ["S", "M", "L", "XL"],
     badge: "Limited",
+    microcopy: "The details do the talking",
   },
   {
     id: "coco",
     name: "The Coco",
-    price: 410,
+    price: 1800,
     category: "Tweed",
     colour: "Crème bouclé",
     image: "/The Coco.png",
     imageAlt: "The Coco — cream bouclé tweed jacket and skirt set with gold buttons",
+    imageWidth: 1200,
+    imageHeight: 1600,
     note: "Cream bouclé and pearl detailing, made to be kept.",
     description:
       "A heirloom set in cream bouclé tweed, finished with pearl buttons and a softly structured shoulder. Designed to be worn together for occasions, or apart for every day.",
     sizes: ["S", "M", "L", "XL"],
+    microcopy: "An edit worth remembering",
   },
 ];
 

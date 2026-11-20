@@ -1,0 +1,80 @@
+const { chromium } = require('playwright');
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  
+  const errors = [];
+  page.on('console', msg => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
+  page.on('pageerror', err => errors.push(err.message));
+  
+  console.log('=== Test Cart Drawer ===');
+  await page.goto('http://localhost:5176/', { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(5000);
+  
+  console.log('Console errors:', errors);
+  
+  // Check initial cart icon
+  let cartIcon = await page.locator('button[aria-label^="Open shopping bag"]').first();
+  console.log('Initial cart icon exists: ' + await cartIcon.isVisible());
+  if (await cartIcon.isVisible()) {
+    const ariaLabel = await cartIcon.getAttribute('aria-label');
+    console.log('Initial cart icon aria-label: ' + ariaLabel);
+  }
+  
+  // Click Order Now on first product - this navigates to PDP
+  const orderNowBtn = await page.locator('button:has-text("Order Now")').first();
+  console.log('Order Now button exists: ' + await orderNowBtn.isVisible());
+  
+  if (await orderNowBtn.isVisible()) {
+    await orderNowBtn.click();
+    await page.waitForTimeout(5000);
+    
+    // Now on PDP - check URL
+    console.log('After Order Now click, URL: ' + page.url());
+    
+    // Select size
+    const sizeBtn = await page.locator('button[role="radio"]').first();
+    await sizeBtn.click();
+    await page.waitForTimeout(500);
+    
+    // Add to cart
+    const addToCartBtn = await page.locator('button:has-text("Add to Cart")').first();
+    console.log('Add to Cart button exists: ' + await addToCartBtn.isVisible());
+    await addToCartBtn.click();
+    await page.waitForTimeout(2000);
+    
+    // Go back to home page using navigation
+    await page.goto('http://localhost:5176/', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.waitForTimeout(3000);
+    
+    // Check cart icon on home page
+    cartIcon = await page.locator('button[aria-label^="Open shopping bag"]').first();
+    console.log('After add to cart - cart icon exists: ' + await cartIcon.isVisible());
+    if (await cartIcon.isVisible()) {
+      const ariaLabel = await cartIcon.getAttribute('aria-label');
+      console.log('Cart icon aria-label: ' + ariaLabel);
+      
+      console.log('Clicking cart icon...');
+      await cartIcon.click();
+      await page.waitForTimeout(3000);
+      
+      // Check for checkout button in drawer
+      const cartCheckoutBtn = await page.locator('button:has-text("Proceed to secure checkout")').first();
+      console.log('Cart drawer Checkout button exists: ' + await cartCheckoutBtn.isVisible());
+      
+      if (await cartCheckoutBtn.isVisible()) {
+        await cartCheckoutBtn.click();
+        await page.waitForTimeout(5000);
+        
+        const checkoutUrl = page.url();
+        console.log('Checkout URL from cart: ' + checkoutUrl);
+      }
+    }
+  }
+  
+  await browser.close();
+  console.log('Cart drawer test completed!');
+})();

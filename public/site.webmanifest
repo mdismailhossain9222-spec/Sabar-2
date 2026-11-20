@@ -1,0 +1,17 @@
+{
+  "name": "Sabr By Simran",
+  "short_name": "Sabar",
+  "description": "Premium, hand-finished luxury clothing crafted for the modern UAE lifestyle.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4A0E17",
+  "theme_color": "#F09DBB",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

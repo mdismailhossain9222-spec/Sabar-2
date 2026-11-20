@@ -5,3 +5,19 @@ temp_zip*/
 .DS_Store
 *.log
 npm-debug.log*
+.vercel
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+
+# Secrets / tokens (NEVER commit these)
+sabar token.txt
+*.token
+cf-token.txt
+
+.vercel
+.env*

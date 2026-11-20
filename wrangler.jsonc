@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sabar-2",
+  "compatibility_date": "2026-11-10",
+  "main": "src/worker.ts",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
+
+  // ──────────────────────────────────────────────────────────────
+  // CUSTOM DOMAIN (attach when the client purchases one)
+  // ──────────────────────────────────────────────────────────────
+  // When you own a domain (e.g. sabarbysimran.ae), attach it to
+  // this Worker with ONE command. The domain must first be added
+  // to your Cloudflare account (see DOMAINS.md for the full flow).
+  //
+  // Option A — CNAME route (recommended, no DNS changes at your
+  // registrar if the domain is already on Cloudflare DNS):
+  //   npx wrangler routes create sabarbysimran.ae sabar-2.mdismailhossain9222.workers.dev
+  //
+  // Option B — Add the route in the Dashboard:
+  //   Workers → sabar-2 → Domains & Routes → Add domain
+  //
+  // Option C — Uncomment the route below and redeploy:
+  //   "routes": [
+  //     { pattern: "sabarbysimran.ae", hostname: "sabarbysimran.ae" }
+  //   ]
+  //
+  // Also create a redirect so the www subdomain works:
+  //   npx wrangler routes create www.sabarbysimran.ae sabar-2.mdismailhossain9222.workers.dev
+  // ──────────────────────────────────────────────────────────────
+}
