@@ -1,26 +1,27 @@
 import { test, expect } from '@playwright/test';
 
+const MAIN_URL = 'http://localhost:5177';
+const DASHBOARD_URL = 'http://localhost:3000';
+
 test.describe('Sabr By Simran - Live Tracking E2E', () => {
-  test('main site /admin redirects to dashboard', async ({ page }) => {
-    await page.goto('http://localhost:5173');
-    // Wait a moment for any preloader
-    await page.waitForTimeout(3000);
-    
-    // Test /admin redirect directly
-    const response = await page.goto('http://localhost:5173/admin', { waitUntil: 'networkidle' });
-    console.log('/admin redirect status:', response?.status());
+  test('main site /admin proxies to dashboard', async ({ page }) => {
+    const response = await page.goto(`${MAIN_URL}/admin`, { waitUntil: 'networkidle' });
+    console.log('/admin proxy status:', response?.status());
     expect(response?.status()).toBeLessThan(400);
+    
+    // Verify we're on the dashboard
+    await expect(page.locator('text=Sabr By Simran').first()).toBeVisible({ timeout: 15000 });
   });
 });
 
 test('dashboard loads with live tracking indicator', async ({ page }) => {
-  await page.goto('http://localhost:3000');
+  await page.goto(DASHBOARD_URL);
   await page.waitForLoadState('networkidle');
   
-  // Check for the dashboard title - use first() to avoid strict mode
+  // Check for the dashboard title
   await expect(page.locator('text=Sabr By Simran').first()).toBeVisible({ timeout: 15000 });
   
-  // Click Orders tab - find the Orders button in sidebar
+  // Click Orders tab
   const ordersButton = page.locator('button:has-text("Orders"), a:has-text("Orders")').first();
   await expect(ordersButton).toBeVisible();
   await ordersButton.click();

@@ -23,6 +23,7 @@ interface SidebarProps {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onOpenNewProductModal: () => void;
+  realtimeConnected: boolean;
 }
 
 const NAV_ITEMS: {
@@ -71,6 +72,7 @@ export function Sidebar({
   mobileOpen,
   onCloseMobile,
   onOpenNewProductModal,
+  realtimeConnected,
 }: SidebarProps) {
   const renderSidebarContent = () => (
     <div className="flex flex-col h-full justify-between select-none">
@@ -221,7 +223,19 @@ export function Sidebar({
         </div>
 
         <div className="px-2 flex items-center justify-between text-[11px] text-[#C4B5A6]/45">
-          <span>SUPABASE • SYNCED</span>
+          <span className="flex items-center gap-1.5">
+            {realtimeConnected ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-[#6EE7B7] animate-pulse" />
+                SUPABASE • LIVE
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+                SUPABASE • SYNCED
+              </>
+            )}
+          </span>
           <span className="tabular-nums">v2.6 LUXE</span>
         </div>
       </div>

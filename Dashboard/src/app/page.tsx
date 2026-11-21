@@ -27,13 +27,14 @@ import {
   REVENUE_CHART_DATA,
   EMIRATE_DISTRIBUTION_BASE,
 } from "@/lib/seed-data";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function SabrAdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Core Data State (pre-hydrated with seed data, then synced with PostgreSQL)
+  // Core Data State (pre-hydrated with seed data, then synced with Supabase)
   const [products, setProducts] = useState<DashboardProduct[]>(INITIAL_PRODUCTS);
   const [orders, setOrders] = useState<DashboardOrder[]>(INITIAL_ORDERS);
   const [customers, setCustomers] =
@@ -56,8 +57,9 @@ export default function SabrAdminDashboardPage() {
   // Live tracking state
   const [isLiveTracking, setIsLiveTracking] = useState(true);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
-  // Fetch live data from PostgreSQL API
+  // Fetch live data from Supabase API
   const loadDashboard = useCallback(async () => {
     try {
       const res = await fetch("/api/dashboard", { cache: "no-store" });
@@ -86,14 +88,59 @@ export default function SabrAdminDashboardPage() {
     loadDashboard();
   }, [loadDashboard]);
 
-  // Live tracking polling every 12 seconds
+  // Supabase Realtime for orders table
   useEffect(() => {
-    if (!isLiveTracking) return;
+    if (!isSupabaseConfigured()) return;
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("orders-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+        },
+        (payload) => {
+          console.log("[Realtime] New order inserted:", payload);
+          // Refresh orders to get the new one
+          loadDashboard();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+        },
+        (payload) => {
+          console.log("[Realtime] Order updated:", payload);
+          loadDashboard();
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Subscription status:", status);
+        setRealtimeConnected(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      setRealtimeConnected(false);
+    };
+  }, [loadDashboard]);
+
+  // Live tracking polling fallback (every 12 seconds) - only when realtime not connected
+  useEffect(() => {
+    if (!isLiveTracking || realtimeConnected) return;
     const interval = setInterval(() => {
       loadDashboard();
     }, 12000);
     return () => clearInterval(interval);
-  }, [isLiveTracking, loadDashboard]);
+  }, [isLiveTracking, loadDashboard, realtimeConnected]);
 
   // Slide-over Order Details Drawer State
   const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
@@ -336,6 +383,7 @@ export default function SabrAdminDashboardPage() {
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         onOpenNewProductModal={() => setShowNewProductModal(true)}
+        realtimeConnected={realtimeConnected}
       />
 
       {/* Right Main Content Column */}
