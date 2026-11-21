@@ -400,6 +400,37 @@ const app = new Hono<{ Bindings: Bindings }>()
   });
 
   // ──────────────────────────────────────────────────────────────
+  // Admin Dashboard Proxy — serve dashboard for /admin routes
+  // ──────────────────────────────────────────────────────────────
+  app.all("/admin*", async (c) => {
+    const dashboardUrl = c.env.VITE_DASHBOARD_URL || "https://sabar-by-simran.vercel.app";
+    const targetUrl = `${dashboardUrl}${c.req.path.replace(/^\/admin/, "") || "/"}${c.req.query ? "?" + new URLSearchParams(c.req.query).toString() : ""}`;
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: c.req.method,
+        headers: {
+          "Content-Type": c.req.header("Content-Type") || "text/html",
+          "Accept": c.req.header("Accept") || "text/html",
+          "Authorization": c.req.header("Authorization") || "",
+          "Cookie": c.req.header("Cookie") || "",
+        },
+        body: ["GET", "HEAD"].includes(c.req.method) ? undefined : await c.req.text(),
+        redirect: "follow",
+      });
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (e) {
+      console.error("[Worker] Dashboard proxy failed:", e);
+      return c.html(`<html><body><h1>Dashboard unavailable</h1><p>Please try <a href="${c.env.VITE_DASHBOARD_URL}">direct link</a></p></body></html>`, 502);
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────────
   // SPA Fallback — serve index.html for all non-API routes
   // This enables client-side React Router on Cloudflare Workers assets
   // ──────────────────────────────────────────────────────────────
