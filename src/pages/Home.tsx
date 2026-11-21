@@ -38,7 +38,6 @@ import {
   TruckIcon,
   WhatsAppIcon,
   WhatsAppLogo,
-  LockIcon,
 } from "@/components/Icons";
 import {
   CURRENCIES,

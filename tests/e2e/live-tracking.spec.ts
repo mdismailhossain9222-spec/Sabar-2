@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const MAIN_URL = 'http://localhost:5177';
+const MAIN_URL = 'http://localhost:5178';
 const DASHBOARD_URL = 'http://localhost:3000';
 
 test.describe('Sabr By Simran - Live Tracking E2E', () => {
