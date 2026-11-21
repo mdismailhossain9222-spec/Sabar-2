@@ -53,6 +53,48 @@ export default function SabrAdminDashboardPage() {
     enableBespokeMeasurements: true,
   });
 
+  // Live tracking state
+  const [isLiveTracking, setIsLiveTracking] = useState(true);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+
+  // Fetch live data from PostgreSQL API
+  const loadDashboard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.products) && data.products.length > 0) {
+        setProducts(data.products);
+      }
+      if (Array.isArray(data.orders) && data.orders.length > 0) {
+        setOrders(data.orders);
+        setLastFetched(new Date());
+      }
+      if (Array.isArray(data.customers) && data.customers.length > 0) {
+        setCustomers(data.customers);
+      }
+      if (data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (err) {
+      console.error("Failed to sync dashboard state:", err);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  // Live tracking polling every 12 seconds
+  useEffect(() => {
+    if (!isLiveTracking) return;
+    const interval = setInterval(() => {
+      loadDashboard();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [isLiveTracking, loadDashboard]);
+
   // Slide-over Order Details Drawer State
   const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
 
@@ -67,37 +109,6 @@ export default function SabrAdminDashboardPage() {
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3200);
-  }, []);
-
-  // Fetch live data from PostgreSQL API on mount
-  useEffect(() => {
-    let active = true;
-    async function loadDashboard() {
-      try {
-        const res = await fetch("/api/dashboard", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!active) return;
-        if (Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
-        }
-        if (Array.isArray(data.orders) && data.orders.length > 0) {
-          setOrders(data.orders);
-        }
-        if (Array.isArray(data.customers) && data.customers.length > 0) {
-          setCustomers(data.customers);
-        }
-        if (data.settings) {
-          setSettings(data.settings);
-        }
-      } catch (err) {
-        console.error("Failed to sync initial dashboard state:", err);
-      }
-    }
-    loadDashboard();
-    return () => {
-      active = false;
-    };
   }, []);
 
   // Update Order Status / Notes

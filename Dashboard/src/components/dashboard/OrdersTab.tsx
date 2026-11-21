@@ -14,6 +14,7 @@ import {
   Plus,
   X,
   Sparkles,
+  Radio,
 } from "lucide-react";
 import type {
   DashboardOrder,
@@ -201,6 +202,16 @@ export function OrdersTab({
           <h2 className="font-serif text-3xl sm:text-4xl lg:text-[42px] text-[#FAF5EF] tracking-[-0.02em] leading-[1.12]">
             Order Management
           </h2>
+          <div className="flex items-center gap-3 mt-2">
+            {/* Live Tracking Indicator */}
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#6EE7B7]/15 border border-[#6EE7B7]/30 text-[#6EE7B7] text-[10px] font-semibold uppercase tracking-[0.18em]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inset-0 rounded-full bg-[#6EE7B7] animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#6EE7B7]" />
+              </span>
+              Live Tracking
+            </span>
+          </div>
           <p className="text-sm text-[#C4B5A6]/75 mt-1.5">
             Inspect client acquisitions, coordinate chauffeur deliveries across the
             Emirates, and manage bespoke fittings.

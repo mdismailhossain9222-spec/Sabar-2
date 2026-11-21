@@ -1075,6 +1075,17 @@ export default function CheckoutPage() {
               <span>Prices in {currency}</span>
               <span aria-hidden="true">·</span>
               <a
+                href="/admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Admin Portal — Client Login"
+                className="inline-flex items-center gap-1 text-[#FAF5EF]/60 transition hover:text-[#FAF5EF]"
+              >
+                <LockIcon className="h-3 w-3" /> Admin Portal
+                <ArrowUpRight className="h-3 w-3 -rotate-45" />
+              </a>
+              <span aria-hidden="true">·</span>
+              <a
                 href="/"
                 aria-label="Back to top"
                 className="inline-flex items-center gap-1 text-[#FAF5EF]/60 transition hover:text-[#FAF5EF]"
