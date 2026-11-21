@@ -8,7 +8,6 @@ import { CartProvider } from "@/contexts/CartContext";
 import { CartDrawer } from "@/components/CartDrawer";
 import { useCart } from "@/contexts/CartContext";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 /**
  * /admin route — redirects to the Admin Dashboard URL.
